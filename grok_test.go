@@ -1,18 +1,34 @@
 package grok
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestNew(t *testing.T) {
 	g := New()
-	defer g.Free()
+	if g == nil {
+		t.Fatal("error")
+	}
 
+}
+
+func TestAddPattern(t *testing.T) {
+	g := New()
+
+	name := "DAY"
+	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
+
+	g.AddPattern(name, pattern)
+	g.AddPattern(name+"2", pattern)
+
+	if len(g.Patterns()) != 2 {
+		t.Fatal("two pattern should be available")
+	}
 }
 
 func TestDayCompile(t *testing.T) {
 	g := New()
-	defer g.Free()
+
+	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
+	//	g.AddPattern("MONTH", "Aout")
 
 	pattern := "%{DAY}"
 	err := g.Compile(pattern)
@@ -23,143 +39,143 @@ func TestDayCompile(t *testing.T) {
 
 func TestDayCompileAndMatch(t *testing.T) {
 	g := New()
-	defer g.Free()
 
-	g.AddPatternsFromFile("./patterns/base")
+	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	text := "Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157"
 	pattern := "%{DAY}"
+
 	err := g.Compile(pattern)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
-	_, err = g.Match(text)
-	if err != nil {
-		t.Fatal("Unable to match!", err)
+
+	if !g.Match(text) {
+		t.Fatal("text does not match pattern ! %s", err)
 	}
 }
 
-func TestMatchCaptures(t *testing.T) {
+func TestCaptures(t *testing.T) {
 	g := New()
-	defer g.Free()
 
+	//g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	g.AddPatternsFromFile("./patterns/base")
 	text := "Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157"
 	pattern := "%{DAY}"
 	g.Compile(pattern)
-	match, err := g.Match(text)
-	if err != nil {
-		t.Fatal("Unable to find match!", err)
+
+	if !g.Match(text) {
+		t.Fatal("text does not match pattern !")
 	}
 
-	captures, err := match.Captures()
+	captures, err := g.Captures(text)
 	if err != nil {
-		t.Fatal("Unable to capture!", err)
+		t.Fatal("Unable to capture ! %s", err)
 	}
-	if dayCap := captures["DAY"][0]; dayCap != "Tue" {
+	if dayCap := captures["DAY"]; dayCap != "Tue" {
 		t.Fatal("Day should equal Tue", err)
 	}
 }
 
-func TestURICaptures(t *testing.T) {
-	g := New()
-	defer g.Free()
-
-	g.AddPatternsFromFile("./patterns/base")
-	text := "https://www.google.com/search?q=moose&sugexp=chrome,mod=16&sourceid=chrome&ie=UTF-8"
-	pattern := "%{URI}"
-	g.Compile(pattern)
-	match, err := g.Match(text)
-	if err != nil {
-		t.Fatal("Unable to find match!", err)
-	}
-
-	captures, err := match.Captures()
-	if err != nil {
-		t.Fatal("Unable to capture!", err)
-	}
-	if host := captures["URIHOST"][0]; host != "www.google.com" {
-		t.Fatal("URIHOST should be www.google.com", err)
-	}
-	if path := captures["URIPATH"][0]; path != "/search" {
-		t.Fatal("URIPATH should be /search", err)
-	}
+func TestAddPatternsFromFile(t *testing.T) {
+	//g := New()
+	//g.AddPatternsFromFile("./patterns/base")
 }
 
-func TestDiscovery(t *testing.T) {
-	g := New()
-	defer g.Free()
+// func TestDateCaptures(t *testing.T) {
+// 	g := New()
 
-	g.AddPattern("IP", "(?<![0-9])(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))(?![0-9])")
+// 	g.AddPatternsFromFile("./patterns/base")
+// 	text := "2014/12/27"
 
-	text := "1.2.3.4"
-	discovery, err := g.Discover(text)
-	if err != nil {
-		t.Fatal("Unable to dicover !", err)
-	}
-	g.Compile(discovery)
-	match, err := g.Match(text)
-	if err != nil {
-		t.Fatal("match error !", err)
-	}
+// 	pattern := "%{DATE_EU}"
+// 	g.Compile(pattern)
 
-	captures, err := match.Captures()
-	if err != nil {
-		t.Fatal("Unable to capture!", err)
-	}
-	if ip := captures["IP"][0]; ip != text {
-		t.Fatal("IP should be 1.2.3.4", err)
-	}
-}
+// 	if !g.Match(text) {
+// 		t.Fatal("text does not match pattern!")
+// 	}
 
-func TestPileMatching(t *testing.T) {
-	p := NewPile()
-	defer p.Free()
+// 	captures, err := g.Captures(text)
+// 	if err != nil {
+// 		t.Fatal("text does not match pattern!", err)
+// 	}
+// 	log.Printf("%s", captures)
+// }
 
-	p.AddPattern("foo", ".*(foo).*")
-	p.AddPattern("bar", ".*(bar).*")
+// func TestDiscovery(t *testing.T) {
+// 	g := New()
+// 	defer g.Free()
 
-	p.Compile("%{bar}")
+// 	g.AddPattern("IP", "(?<![0-9])(?:(?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2})[.](?:25[0-5]|2[0-4][0-9]|[0-1]?[0-9]{1,2}))(?![0-9])")
 
-	grok, match := p.Match("bar")
+// 	text := "1.2.3.4"
+// 	discovery, err := g.Discover(text)
+// 	if err != nil {
+// 		t.Fatal("Unable to dicover !", err)
+// 	}
+// 	g.Compile(discovery)
+// 	match, err := g.Match(text)
+// 	if err != nil {
+// 		t.Fatal("match error !", err)
+// 	}
 
-	captures, err := match.Captures()
-	if err != nil {
-		t.Fatal("Unable to capture!", err)
-	}
-	if bar := captures["bar"][0]; bar != "bar" {
-		t.Fatal("Should match the bar pattern", err)
-	}
+// 	captures, err := match.Captures()
+// 	if err != nil {
+// 		t.Fatal("Unable to capture!", err)
+// 	}
+// 	if ip := captures["IP"][0]; ip != text {
+// 		t.Fatal("IP should be 1.2.3.4", err)
+// 	}
+// }
 
-	match2, err := grok.Match("bar")
-	if err != nil {
-		t.Fatal("match error !", err)
-	}
+// func TestPileMatching(t *testing.T) {
+// 	p := NewPile()
+// 	defer p.Free()
 
-	captures, err = match2.Captures()
-	if err != nil {
-		t.Fatal("Unable to capture!", err)
-	}
-	if bar := captures["bar"][0]; bar != "bar" {
-		t.Fatal("Should match the bar pattern", err)
-	}
-}
+// 	p.AddPattern("foo", ".*(foo).*")
+// 	p.AddPattern("bar", ".*(bar).*")
 
-func TestPileAddPatternsFromFile(t *testing.T) {
-	p := NewPile()
-	defer p.Free()
+// 	p.Compile("%{bar}")
 
-	p.AddPatternsFromFile("./patterns/base")
-	p.Compile("%{DAY}")
+// 	grok, match := p.Match("bar")
 
-	text := "Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157"
+// 	captures, err := match.Captures()
+// 	if err != nil {
+// 		t.Fatal("Unable to capture!", err)
+// 	}
+// 	if bar := captures["bar"][0]; bar != "bar" {
+// 		t.Fatal("Should match the bar pattern", err)
+// 	}
 
-	_, match := p.Match(text)
+// 	match2, err := grok.Match("bar")
+// 	if err != nil {
+// 		t.Fatal("match error !", err)
+// 	}
 
-	captures, err := match.Captures()
-	if err != nil {
-		t.Fatal("Unable to capture!", err)
-	}
-	if day := captures["DAY"][0]; day != "Tue" {
-		t.Fatal("Should match the Tue", err)
-	}
-}
+// 	captures, err = match2.Captures()
+// 	if err != nil {
+// 		t.Fatal("Unable to capture!", err)
+// 	}
+// 	if bar := captures["bar"][0]; bar != "bar" {
+// 		t.Fatal("Should match the bar pattern", err)
+// 	}
+// }
+
+// func TestPileAddPatternsFromFile(t *testing.T) {
+// 	p := NewPile()
+// 	defer p.Free()
+
+// 	p.AddPatternsFromFile("./patterns/base")
+// 	p.Compile("%{DAY}")
+
+// 	text := "Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157"
+
+// 	_, match := p.Match(text)
+
+// 	captures, err := match.Captures()
+// 	if err != nil {
+// 		t.Fatal("Unable to capture!", err)
+// 	}
+// 	if day := captures["DAY"][0]; day != "Tue" {
+// 		t.Fatal("Should match the Tue", err)
+// 	}
+// }

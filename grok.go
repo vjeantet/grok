@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Grok Type
 type Grok struct {
 	compiledPattern     *regexp.Regexp
 	lastCompiledPattern string
@@ -61,6 +62,7 @@ func (g *Grok) Compile(pattern string) error {
 	return nil
 }
 
+// Match returns true when text match the compileed pattern
 func (g *Grok) Match(text string) bool {
 	if g.compiledPattern == nil {
 		return false
@@ -73,6 +75,7 @@ func (g *Grok) Match(text string) bool {
 	return true
 }
 
+// Captures returns a string map with captured string on text for the compiled pattern
 func (g *Grok) Captures(text string) (map[string]string, error) {
 	captures := make(map[string]string)
 	if g.compiledPattern == nil {
@@ -91,6 +94,7 @@ func (g *Grok) Captures(text string) (map[string]string, error) {
 	return captures, nil
 }
 
+// AddPatternsFromFile loads grok patterns from a file
 func (g *Grok) AddPatternsFromFile(path string) error {
 	inFile, _ := os.Open(path)
 	defer inFile.Close()

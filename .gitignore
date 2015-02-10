@@ -22,4 +22,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
-*.pov
+*.cov
+.coveralls.yml

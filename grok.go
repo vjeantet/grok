@@ -8,11 +8,10 @@ import (
 	"strings"
 )
 
-// var patterns = map[string]string{}
-
 type Grok struct {
-	compiledPattern *regexp.Regexp
-	patterns        map[string]string
+	compiledPattern     *regexp.Regexp
+	lastCompiledPattern string
+	patterns            map[string]string
 }
 
 // New returns a Grok struct
@@ -27,18 +26,11 @@ func (g *Grok) AddPattern(name string, pattern string) {
 	g.patterns[name] = pattern
 }
 
-// Patterns returns all loaded patterns
-func (g *Grok) Patterns() map[string]string {
-	return g.patterns
-}
-
-// Compile
+// Compile compile a regex from the pattern
 func (g *Grok) Compile(pattern string) error {
-
-	//TODO : Denormalize pattern
-	//   "%{DAY}" => (?P<DAY>(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?))
-	//   "%{DAY:foo} => (?P<foo>(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?))
-	//   "%{DAY:foo}" .* => (?P<foo>(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?) .*)
+	if g.lastCompiledPattern == pattern {
+		return nil
+	}
 
 	//search for %{...:...}
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
@@ -50,12 +42,12 @@ func (g *Grok) Compile(pattern string) error {
 		if len(names) != 1 {
 			customname = names[1]
 		}
-		//rechercher les replacements
-		if ok := g.Patterns()[names[0]]; ok == "" {
+		//search for replacements
+		if ok := g.patterns[names[0]]; ok == "" {
 			return fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
 		}
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.Patterns()[names[0]])
-		//construire la nouvelle regexp
+		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
+		//build the new regexp
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)
 	}
 
@@ -65,7 +57,7 @@ func (g *Grok) Compile(pattern string) error {
 	}
 
 	g.compiledPattern = patternCompiled
-
+	g.lastCompiledPattern = pattern
 	return nil
 }
 
@@ -89,7 +81,11 @@ func (g *Grok) Captures(text string) (map[string]string, error) {
 
 	match := g.compiledPattern.FindStringSubmatch(text)
 	for i, name := range g.compiledPattern.SubexpNames() {
-		captures[name] = match[i]
+
+		if len(match) > 0 {
+			captures[name] = match[i]
+		}
+
 	}
 
 	return captures, nil
@@ -109,9 +105,7 @@ func (g *Grok) AddPatternsFromFile(path string) error {
 		l := scanner.Text()
 		if len(l) > 0 { // line has text
 			if l[0] != '#' { // line does not start with #
-				//fmt.Println(l)
-
-				names := strings.Split(l, " ")
+				names := strings.SplitN(l, " ", 2)
 				// names[0] = key
 				// names[1] = pattern
 				fileContent[names[0]] = names[1]
@@ -122,7 +116,6 @@ func (g *Grok) AddPatternsFromFile(path string) error {
 					rawKey := strings.Split(key[1], ":")
 					keys = append(keys, rawKey[0])
 				}
-				//fmt.Printf("%s => %s\n", names[0], keys)
 				patternDependancies[names[0]] = keys
 			}
 		}
@@ -133,15 +126,14 @@ func (g *Grok) AddPatternsFromFile(path string) error {
 
 	var denormalizedPattern = map[string]string{}
 	for _, key := range order {
-		//fmt.Printf("%s => %s\n", key, fileContent[key])
-		denormalizedPattern[key] = oo(fileContent[key], denormalizedPattern)
+		denormalizedPattern[key] = denormalizePattern(fileContent[key], denormalizedPattern)
 		g.AddPattern(key, denormalizedPattern[key])
 	}
 
 	return nil
 }
 
-func oo(pattern string, finalPatterns map[string]string) string {
+func denormalizePattern(pattern string, finalPatterns map[string]string) string {
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
 	newPattern := pattern
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
@@ -151,47 +143,12 @@ func oo(pattern string, finalPatterns map[string]string) string {
 		if len(names) != 1 {
 			customname = names[1]
 		}
-		//rechercher les replacements
+		//search for replacements
 		replace := fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[names[0]])
-		//log.Printf("replace %s by %s", values[0], replace)
-		//construire la nouvelle regexp
+
+		//build the new regex
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)
 
 	}
 	return newPattern
-}
-
-func (g *Grok) Discover(text string) (string, error) {
-	return "", fmt.Errorf("Not Implemented")
-}
-
-type Pile struct {
-	Patterns     map[string]string
-	PatternFiles []string
-	Groks        []*Grok
-}
-
-func NewPile() *Pile {
-	pile := new(Pile)
-	pile.Patterns = make(map[string]string)
-	pile.PatternFiles = make([]string, 0)
-	pile.Groks = make([]*Grok, 0)
-
-	return pile
-}
-
-func (pile *Pile) AddPattern(name, str string) error {
-	return fmt.Errorf("Not Implemented")
-}
-
-func (pile *Pile) Compile(pattern string) error {
-	return fmt.Errorf("Not Implemented")
-}
-
-func (pile *Pile) AddPatternsFromFile(path string) {
-	pile.PatternFiles = append(pile.PatternFiles, path)
-}
-
-func (pile *Pile) Match(str string) *Grok {
-	return nil
 }

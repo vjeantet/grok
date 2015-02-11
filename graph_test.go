@@ -31,8 +31,10 @@ func TestSortGraph(t *testing.T) {
 		[]string{"5", "7", "11", "2", "3", "8", "10", "9"},
 	}
 
-	order, _ := sortGraph(g)
-
+	order, cycle := sortGraph(g)
+	if cycle != nil {
+		t.Fatal("cycle detected while not expected")
+	}
 	for _, expectedOrder := range validOrders {
 		if sliceEquals(order, expectedOrder) {
 			return
@@ -40,6 +42,38 @@ func TestSortGraph(t *testing.T) {
 	}
 
 	t.Fatalf("sorted graph is %+v, expected a order like: %+v", order, validOrders[0])
+}
+
+func TestSortGraphWithCycle(t *testing.T) {
+	var g = graph{}
+	g["7"] = []string{"11", "8"}
+	g["5"] = []string{"11"}
+	g["3"] = []string{"8", "10"}
+	g["11"] = []string{"2", "9", "10"}
+	g["8"] = []string{"9", "10"}
+	g["2"] = []string{}
+	g["9"] = []string{"3"}
+	g["10"] = []string{}
+
+	validCycles := [][]string{
+		[]string{"3", "9", "8"},
+		[]string{"8", "3", "9"},
+		[]string{"9", "8", "3"},
+	}
+
+	_, cycle := sortGraph(g)
+
+	if cycle == nil {
+		t.Fatal("cycle not detected while sorting graph")
+	}
+
+	for _, expectedCycle := range validCycles {
+		if sliceEquals(cycle, expectedCycle) {
+			return
+		}
+	}
+
+	t.Fatalf("cycle have %+v, expected %+v", cycle, validCycles[0])
 }
 
 func sliceEquals(a, b []string) bool {

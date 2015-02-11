@@ -10,7 +10,7 @@ func reverseList(s []string) (r []string) {
 	return
 }
 
-func topSortDFS(g graph) (order, cyclic []string) {
+func sortGraph(g graph) (order, cyclic []string) {
 	L := make([]string, len(g))
 	i := len(L)
 	temp := map[string]bool{}

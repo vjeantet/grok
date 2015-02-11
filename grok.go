@@ -125,7 +125,7 @@ func (g *Grok) AddPatternsFromFile(path string) error {
 		}
 	}
 
-	order, _ := topSortDFS(patternDependancies)
+	order, _ := sortGraph(patternDependancies)
 	order = reverseList(order)
 
 	var denormalizedPattern = map[string]string{}

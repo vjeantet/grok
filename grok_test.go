@@ -65,6 +65,24 @@ func BenchmarkCaptures(t *testing.B) {
 	}
 }
 
+func TestNamedCaptures(t *testing.T) {
+	g := New()
+	g.AddPatternsFromFile("./patterns/base")
+
+	check := func(key, value, pattern, text string) {
+		g.Compile(pattern)
+		captures, _ := g.Captures(text)
+		if captures[key] != value {
+			t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+		}
+	}
+
+	check("jour", "Tue",
+		"%{DAY:jour}",
+		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
+	)
+}
+
 func TestCaptures(t *testing.T) {
 	g := New()
 	g.AddPatternsFromFile("./patterns/base")
@@ -85,6 +103,10 @@ func TestCaptures(t *testing.T) {
 
 	check("DAY", "Tue",
 		"%{DAY}",
+		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
+	)
+	check("jour", "Tue",
+		"%{DAY:jour}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
 	check("clientip", "127.0.0.1",

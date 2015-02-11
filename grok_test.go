@@ -23,6 +23,16 @@ func TestAddPattern(t *testing.T) {
 	}
 }
 
+func TestMatch(t *testing.T) {
+	t.SkipNow()
+}
+func TestDoesNotMatch(t *testing.T) {
+	t.SkipNow()
+}
+func TestErrorMatchWithoutCompilation(t *testing.T) {
+	t.SkipNow()
+}
+
 func TestDayCompile(t *testing.T) {
 	g := New()
 	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
@@ -81,6 +91,36 @@ func TestNamedCaptures(t *testing.T) {
 		"%{DAY:jour}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
+}
+
+func TestErrorCaptureUnknowPattern(t *testing.T) {
+	g := New()
+	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
+	pattern := "%{MONTH}"
+	err := g.Compile(pattern)
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
+}
+
+func TestErrorCompileRegex(t *testing.T) {
+	g := New()
+	g.AddPattern("DAY", "(")
+	pattern := "%{DAY}"
+	err := g.Compile(pattern)
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
+}
+
+func TestCapturesWithoutCompilation(t *testing.T) {
+	g := New()
+	g.AddPattern("DAY", "(")
+	_, err := g.Captures("Lorem ipsum Ut officia ut minim ea laborum Excepteur ut consequat et pariatur nostrud.")
+
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
 }
 
 func TestCaptures(t *testing.T) {

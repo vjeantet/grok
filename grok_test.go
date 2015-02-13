@@ -123,6 +123,15 @@ func TestErrorCompileRegex(t *testing.T) {
 	}
 }
 
+func TestParse(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	res, _ := g.Parse("%{DAY}", "Tue qds")
+	if res["DAY"] != "Tue" {
+		t.Fatalf("DAY should be 'Tue' have '%s'", res["DAY"])
+	}
+}
+
 func TestCapturesWithoutCompilation(t *testing.T) {
 	g := New()
 	g.AddPattern("DAY", "(")

@@ -76,6 +76,12 @@ func (g *Grok) Match(text string) (bool, error) {
 	return true, nil
 }
 
+// Parse returns a string map with captured string based on provided pattern over the text
+func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
+	g.Compile(pattern)
+	return g.Captures(text)
+}
+
 // Captures returns a string map with captured string on text for the compiled pattern
 func (g *Grok) Captures(text string) (map[string]string, error) {
 	captures := make(map[string]string)

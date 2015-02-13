@@ -64,16 +64,16 @@ func (g *Grok) Compile(pattern string) error {
 }
 
 // Match returns true when text match the compileed pattern
-func (g *Grok) Match(text string) bool {
+func (g *Grok) Match(text string) (bool, error) {
 	if g.compiledPattern == nil {
-		return false
+		return false, fmt.Errorf("No compiled pattern")
 	}
 
 	if m := g.compiledPattern.MatchString(text); !m {
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
 }
 
 // Captures returns a string map with captured string on text for the compiled pattern

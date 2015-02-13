@@ -24,13 +24,28 @@ func TestAddPattern(t *testing.T) {
 }
 
 func TestMatch(t *testing.T) {
-	t.SkipNow()
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	g.Compile("%{MONTH}")
+	if r, _ := g.Match("June"); !r {
+		t.Fatal("June should match %{MONTH}")
+	}
+
 }
 func TestDoesNotMatch(t *testing.T) {
-	t.SkipNow()
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	g.Compile("%{MONTH}")
+	if r, _ := g.Match("13"); r {
+		t.Fatal("13 should not match %{MONTH}")
+	}
 }
 func TestErrorMatchWithoutCompilation(t *testing.T) {
-	t.SkipNow()
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	if _, err := g.Match("12"); err == nil {
+		t.Fatal("Match should return an error")
+	}
 }
 
 func TestDayCompile(t *testing.T) {

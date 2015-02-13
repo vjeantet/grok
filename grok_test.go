@@ -43,14 +43,9 @@ func TestDayCompile(t *testing.T) {
 	}
 }
 
-func TestAddPatternsFromFile(t *testing.T) {
-	g := New()
-	g.AddPatternsFromFile("./patterns/base")
-}
-
 func BenchmarkCaptures(t *testing.B) {
 	g := New()
-	g.AddPatternsFromFile("./patterns/base")
+	g.AddPatternsFromPath("./patterns/base")
 
 	check := func(key, value, pattern, text string) {
 		if err := g.Compile(pattern); err != nil {
@@ -77,7 +72,7 @@ func BenchmarkCaptures(t *testing.B) {
 
 func TestNamedCaptures(t *testing.T) {
 	g := New()
-	g.AddPatternsFromFile("./patterns/base")
+	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
 		g.Compile(pattern)
@@ -125,7 +120,7 @@ func TestCapturesWithoutCompilation(t *testing.T) {
 
 func TestCaptures(t *testing.T) {
 	g := New()
-	g.AddPatternsFromFile("./patterns/base")
+	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
 		if err := g.Compile(pattern); err != nil {
@@ -169,6 +164,8 @@ func TestCaptures(t *testing.T) {
 		"%{COMMONAPACHELOG}",
 		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
 	)
+
+	//PATH
 	check("WINPATH", `c:\winfows\sdf.txt`, "%{WINPATH}", `s dfqs c:\winfows\sdf.txt`)
 	check("WINPATH", `\\sdf\winfows\sdf.txt`, "%{WINPATH}", `s dfqs \\sdf\winfows\sdf.txt`)
 	check("UNIXPATH", `/usr/lib/`, "%{UNIXPATH}", `s dfqs /usr/lib/ sqfd`)

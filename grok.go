@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -94,35 +95,47 @@ func (g *Grok) Captures(text string) (map[string]string, error) {
 	return captures, nil
 }
 
-// AddPatternsFromFile loads grok patterns from a file
-func (g *Grok) AddPatternsFromFile(path string) error {
-	inFile, _ := os.Open(path)
-	defer inFile.Close()
+// AddPatternsFromPath loads grok patterns from a file or files from a directory
+func (g *Grok) AddPatternsFromPath(path string) error {
 
-	reader := bufio.NewReader(inFile)
-	scanner := bufio.NewScanner(reader)
+	if fi, err := os.Stat(path); err == nil {
+		if fi.IsDir() {
+			path = path + "/*"
+		}
+	}
 
 	var patternDependancies = graph{}
 	var fileContent = map[string]string{}
 
-	for scanner.Scan() {
-		l := scanner.Text()
-		if len(l) > 0 { // line has text
-			if l[0] != '#' { // line does not start with #
-				names := strings.SplitN(l, " ", 2)
-				// names[0] = key
-				// names[1] = pattern
-				fileContent[names[0]] = names[1]
+	//List all files if path folder
+	files, _ := filepath.Glob(path)
+	for _, file := range files {
+		inFile, _ := os.Open(file)
 
-				r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
-				keys := []string{}
-				for _, key := range r.FindAllStringSubmatch(names[1], -1) {
-					rawKey := strings.Split(key[1], ":")
-					keys = append(keys, rawKey[0])
+		reader := bufio.NewReader(inFile)
+		scanner := bufio.NewScanner(reader)
+
+		for scanner.Scan() {
+			l := scanner.Text()
+			if len(l) > 0 { // line has text
+				if l[0] != '#' { // line does not start with #
+					names := strings.SplitN(l, " ", 2)
+					// names[0] = key
+					// names[1] = pattern
+					fileContent[names[0]] = names[1]
+
+					r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+					keys := []string{}
+					for _, key := range r.FindAllStringSubmatch(names[1], -1) {
+						rawKey := strings.Split(key[1], ":")
+						keys = append(keys, rawKey[0])
+					}
+					patternDependancies[names[0]] = keys
 				}
-				patternDependancies[names[0]] = keys
 			}
 		}
+
+		inFile.Close()
 	}
 
 	order, _ := sortGraph(patternDependancies)

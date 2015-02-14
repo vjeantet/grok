@@ -28,7 +28,7 @@ func TestMatch(t *testing.T) {
 	g.AddPatternsFromPath("./patterns")
 
 	if r, err := g.Match("%{MONTH}", "June"); !r {
-		t.Fatalf("June should match %{MONTH}: err=%s", err.Error())
+		t.Fatalf("June should match %s: err=%s", "%{MONTH}", err.Error())
 	}
 
 }
@@ -36,7 +36,7 @@ func TestDoesNotMatch(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
 	if r, _ := g.Match("%{MONTH}", "13"); r {
-		t.Fatal("13 should not match %{MONTH}")
+		t.Fatalf("13 should not match %s", "%{MONTH}")
 	}
 }
 

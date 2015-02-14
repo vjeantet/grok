@@ -12,10 +12,9 @@ import (
 
 // Grok Type
 type Grok struct {
-	compiledPattern     map[string]*regexp.Regexp
-	lastCompiledPattern string
-	patterns            map[string]string
-	serviceMu           sync.Mutex
+	compiledPattern map[string]*regexp.Regexp
+	patterns        map[string]string
+	serviceMu       sync.Mutex
 }
 
 // New returns a Grok struct
@@ -36,6 +35,7 @@ func (g *Grok) cache(pattern string, cr *regexp.Regexp) {
 	defer g.serviceMu.Unlock()
 	g.compiledPattern[pattern] = cr
 }
+
 func (g *Grok) cacheExists(pattern string) bool {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()

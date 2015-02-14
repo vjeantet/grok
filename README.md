@@ -7,6 +7,7 @@ simple library to use/parse grok patterns with go
 
 # Installation
 Make sure you have the a working Go environment.
+
 ```go get github.com/gemsi/grok```
 
 # Use in your project

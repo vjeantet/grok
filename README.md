@@ -13,7 +13,7 @@ Make sure you have the a working Go environment.
 ```import "github.com/gemsi/grok"```
 
 
-# Exemple
+# Example
 ```
 package main
 
@@ -34,7 +34,7 @@ func main() {
 }
 ```
 
-Will print
+output:
 ```
        response: 404
           bytes: 207
@@ -64,5 +64,5 @@ COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP
      rawrequest: 
 ```
 
-# TODO :
+# TODO
 * Use default patterns if AddPatternsFromPath is not used 

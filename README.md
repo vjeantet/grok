@@ -29,39 +29,39 @@ func main() {
 	values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
 	for k, v := range values {
-		fmt.Printf("%+12s: %s\n", k, v)
+		fmt.Printf("%+15s: %s\n", k, v)
 	}
 }
 ```
 
 Will print
 ```
-    HOSTNAME: 127.0.0.1
-          IP: 
-        IPV6: 
-   timestamp: 23/Apr/2014:22:58:32 +0200
-       MONTH: Apr
-        HOUR: 22
-         INT: +0200
+       response: 404
+          bytes: 207
+               : 207
+       HOSTNAME: 127.0.0.1
+       USERNAME: -
+       MONTHDAY: 23
+        request: /index.php
+      BASE10NUM: 207
+           IPV6: 
+           auth: -
+      timestamp: 23/Apr/2014:22:58:32 +0200
+           verb: GET
+    httpversion: 1.1
+           TIME: 22:58:32
+           HOUR: 22
 COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
- httpversion: 1.1
-   BASE10NUM: 207
-     request: /index.php
-        YEAR: 2014
-        verb: GET
-    response: 404
-       ident: -
-        TIME: 22:58:32
-      MINUTE: 58
-    MONTHDAY: 23
-    clientip: 127.0.0.1
-        IPV4: 
-    USERNAME: -
-        auth: -
-      SECOND: 32
-  rawrequest: 
-       bytes: 207
-            : 207
+       clientip: 127.0.0.1
+             IP: 
+          ident: -
+          MONTH: Apr
+           YEAR: 2014
+         SECOND: 32
+            INT: +0200
+           IPV4: 
+         MINUTE: 58
+     rawrequest: 
 ```
 
 # TODO :

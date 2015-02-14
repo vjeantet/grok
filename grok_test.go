@@ -26,34 +26,42 @@ func TestAddPattern(t *testing.T) {
 func TestMatch(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
-	g.Compile("%{MONTH}")
-	if r, _ := g.Match("June"); !r {
-		t.Fatal("June should match %{MONTH}")
+
+	if r, err := g.Match("%{MONTH}", "June"); !r {
+		t.Fatalf("June should match %{MONTH}: err=%s", err.Error())
 	}
 
 }
 func TestDoesNotMatch(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
-	g.Compile("%{MONTH}")
-	if r, _ := g.Match("13"); r {
+	if r, _ := g.Match("%{MONTH}", "13"); r {
 		t.Fatal("13 should not match %{MONTH}")
 	}
 }
-func TestErrorMatchWithoutCompilation(t *testing.T) {
+
+func TestErrorMatch(t *testing.T) {
 	g := New()
-	g.AddPatternsFromPath("./patterns")
-	if _, err := g.Match("12"); err == nil {
-		t.Fatal("Match should return an error")
+	if _, err := g.Match("(", "13"); err == nil {
+		t.Fatal("Error expected")
 	}
+
 }
 
 func TestDayCompile(t *testing.T) {
 	g := New()
 	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	pattern := "%{DAY}"
-	err := g.Compile(pattern)
+	_, err := g.compile(pattern)
 	if err != nil {
+		t.Fatal("Error:", err)
+	}
+}
+
+func TestErrorCompile(t *testing.T) {
+	g := New()
+	_, err := g.compile("(")
+	if err == nil {
 		t.Fatal("Error:", err)
 	}
 }
@@ -63,11 +71,8 @@ func BenchmarkCaptures(t *testing.B) {
 	g.AddPatternsFromPath("./patterns/base")
 
 	check := func(key, value, pattern, text string) {
-		if err := g.Compile(pattern); err != nil {
-			t.Fatalf("error can not compile : %s", err.Error())
-		}
 
-		if captures, err := g.Captures(text); err != nil {
+		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
 			if captures[key] != value {
@@ -90,8 +95,7 @@ func TestNamedCaptures(t *testing.T) {
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
-		g.Compile(pattern)
-		captures, _ := g.Captures(text)
+		captures, _ := g.Parse(pattern, text)
 		if captures[key] != value {
 			t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
 		}
@@ -107,17 +111,7 @@ func TestErrorCaptureUnknowPattern(t *testing.T) {
 	g := New()
 	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	pattern := "%{MONTH}"
-	err := g.Compile(pattern)
-	if err == nil {
-		t.Fatal("Expected error not set")
-	}
-}
-
-func TestErrorCompileRegex(t *testing.T) {
-	g := New()
-	g.AddPattern("DAY", "(")
-	pattern := "%{DAY}"
-	err := g.Compile(pattern)
+	_, err := g.Parse(pattern, "")
 	if err == nil {
 		t.Fatal("Expected error not set")
 	}
@@ -132,26 +126,13 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestCapturesWithoutCompilation(t *testing.T) {
-	g := New()
-	g.AddPattern("DAY", "(")
-	_, err := g.Captures("Lorem ipsum Ut officia ut minim ea laborum Excepteur ut consequat et pariatur nostrud.")
-
-	if err == nil {
-		t.Fatal("Expected error not set")
-	}
-}
-
 func TestCaptures(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
-		if err := g.Compile(pattern); err != nil {
-			t.Fatalf("error can not compile : %s", err.Error())
-		}
 
-		if captures, err := g.Captures(text); err != nil {
+		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
 			if captures[key] != value {
@@ -214,4 +195,27 @@ func TestCaptures(t *testing.T) {
 	check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
 	check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
 
+}
+
+// Should be run with -race
+func TestConcurentParse(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+
+	check := func(key, value, pattern, text string) {
+
+		if captures, err := g.Parse(pattern, text); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if captures[key] != value {
+				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+			}
+		}
+	}
+
+	go check("QUOTEDSTRING", `"lkj"`, "%{QUOTEDSTRING}", `qsdklfjqsd fk"lkj"mkj`)
+	go check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
+	go check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
+	go check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
+	go check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
 }

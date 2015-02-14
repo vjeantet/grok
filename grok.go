@@ -7,19 +7,22 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 // Grok Type
 type Grok struct {
-	compiledPattern     *regexp.Regexp
+	compiledPattern     map[string]*regexp.Regexp
 	lastCompiledPattern string
 	patterns            map[string]string
+	serviceMu           sync.Mutex
 }
 
 // New returns a Grok struct
 func New() *Grok {
 	o := new(Grok)
 	o.patterns = map[string]string{}
+	o.compiledPattern = map[string]*regexp.Regexp{}
 	return o
 }
 
@@ -28,10 +31,25 @@ func (g *Grok) AddPattern(name string, pattern string) {
 	g.patterns[name] = pattern
 }
 
-// Compile compile a regex from the pattern
-func (g *Grok) Compile(pattern string) error {
-	if g.lastCompiledPattern == pattern {
-		return nil
+func (g *Grok) cache(pattern string, cr *regexp.Regexp) {
+	g.serviceMu.Lock()
+	defer g.serviceMu.Unlock()
+	g.compiledPattern[pattern] = cr
+}
+func (g *Grok) cacheExists(pattern string) bool {
+	g.serviceMu.Lock()
+	defer g.serviceMu.Unlock()
+
+	if _, ok := g.compiledPattern[pattern]; ok {
+		return true
+	}
+
+	return false
+}
+
+func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
+	if g.cacheExists(pattern) {
+		return g.compiledPattern[pattern], nil
 	}
 
 	//search for %{...:...}
@@ -46,7 +64,7 @@ func (g *Grok) Compile(pattern string) error {
 		}
 		//search for replacements
 		if ok := g.patterns[names[0]]; ok == "" {
-			return fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
+			return nil, fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
 		}
 		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
 		//build the new regexp
@@ -54,22 +72,24 @@ func (g *Grok) Compile(pattern string) error {
 	}
 
 	patternCompiled, err := regexp.Compile(newPattern)
-	if err != nil {
-		return err
-	}
 
-	g.compiledPattern = patternCompiled
-	g.lastCompiledPattern = pattern
-	return nil
+	if err != nil {
+		return nil, err
+	}
+	g.cache(pattern, patternCompiled)
+	return patternCompiled, nil
+
 }
 
 // Match returns true when text match the compileed pattern
-func (g *Grok) Match(text string) (bool, error) {
-	if g.compiledPattern == nil {
-		return false, fmt.Errorf("No compiled pattern")
+func (g *Grok) Match(pattern, text string) (bool, error) {
+	cr, err := g.compile(pattern)
+
+	if err != nil {
+		return false, err
 	}
 
-	if m := g.compiledPattern.MatchString(text); !m {
+	if m := cr.MatchString(text); !m {
 		return false, nil
 	}
 
@@ -78,19 +98,14 @@ func (g *Grok) Match(text string) (bool, error) {
 
 // Parse returns a string map with captured string based on provided pattern over the text
 func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
-	g.Compile(pattern)
-	return g.Captures(text)
-}
-
-// Captures returns a string map with captured string on text for the compiled pattern
-func (g *Grok) Captures(text string) (map[string]string, error) {
 	captures := make(map[string]string)
-	if g.compiledPattern == nil {
-		return captures, fmt.Errorf("missing compiled regexp")
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
 	}
 
-	match := g.compiledPattern.FindStringSubmatch(text)
-	for i, name := range g.compiledPattern.SubexpNames() {
+	match := cr.FindStringSubmatch(text)
+	for i, name := range cr.SubexpNames() {
 
 		if len(match) > 0 {
 			captures[name] = match[i]

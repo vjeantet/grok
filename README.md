@@ -28,7 +28,6 @@ import (
 
 func main() {
 	g := grok.New()
-	g.AddPatternsFromPath("../patterns") // path to pattern folder
 	values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
 	for k, v := range values {
@@ -66,6 +65,3 @@ COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP
          MINUTE: 58
      rawrequest: 
 ```
-
-# TODO
-* Use default patterns if AddPatternsFromPath is not used 

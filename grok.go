@@ -20,7 +20,7 @@ type Grok struct {
 // New returns a Grok struct
 func New() *Grok {
 	o := new(Grok)
-	o.patterns = map[string]string{}
+	o.patterns = patterns
 	o.compiledPattern = map[string]*regexp.Regexp{}
 	return o
 }
@@ -167,6 +167,10 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 		denormalizedPattern[key] = denormalizePattern(fileContent[key], denormalizedPattern)
 		g.AddPattern(key, denormalizedPattern[key])
 	}
+
+	// for k, v := range g.patterns {
+	// 	fmt.Printf("`%s` : `%s`,\n", k, v)
+	// }
 
 	return nil
 }

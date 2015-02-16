@@ -12,14 +12,14 @@ func TestNew(t *testing.T) {
 
 func TestAddPattern(t *testing.T) {
 	g := New()
-	name := "DAY"
+	name := "DAYO"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
-
+	c_patterns := len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
 
-	if len(g.patterns) != 2 {
-		t.Fatal("two pattern should be available")
+	if len(g.patterns) != c_patterns+2 {
+		t.Fatalf("%d patterns should be available, have %d", c_patterns+2, len(g.patterns))
 	}
 }
 
@@ -109,8 +109,7 @@ func TestNamedCaptures(t *testing.T) {
 
 func TestErrorCaptureUnknowPattern(t *testing.T) {
 	g := New()
-	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
-	pattern := "%{MONTH}"
+	pattern := "%{UNKNOWPATTERN}"
 	_, err := g.Parse(pattern, "")
 	if err == nil {
 		t.Fatal("Expected error not set")

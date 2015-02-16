@@ -70,7 +70,6 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 		//build the new regexp
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)
 	}
-
 	patternCompiled, err := regexp.Compile(newPattern)
 
 	if err != nil {
@@ -106,11 +105,9 @@ func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
 
 	match := cr.FindStringSubmatch(text)
 	for i, name := range cr.SubexpNames() {
-
 		if len(match) > 0 {
 			captures[name] = match[i]
 		}
-
 	}
 
 	return captures, nil
@@ -155,7 +152,6 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 				}
 			}
 		}
-
 		inFile.Close()
 	}
 
@@ -167,10 +163,6 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 		denormalizedPattern[key] = denormalizePattern(fileContent[key], denormalizedPattern)
 		g.AddPattern(key, denormalizedPattern[key])
 	}
-
-	// for k, v := range g.patterns {
-	// 	fmt.Printf("`%s` : `%s`,\n", k, v)
-	// }
 
 	return nil
 }
@@ -190,7 +182,6 @@ func denormalizePattern(pattern string, finalPatterns map[string]string) string 
 
 		//build the new regex
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)
-
 	}
 	return newPattern
 }

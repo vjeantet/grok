@@ -97,17 +97,14 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 
 // Parse returns a string map with captured string based on provided pattern over the text
 func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
-	captures := make(map[string]string)
-	cr, err := g.compile(pattern)
+	multiCaptures, err := g.ParseToMultiMap(pattern, text)
 	if err != nil {
-		return nil, err
+		return  nil, err
 	}
 
-	match := cr.FindStringSubmatch(text)
-	for i, name := range cr.SubexpNames() {
-		if len(match) > 0 {
-			captures[name] = match[i]
-		}
+	captures := make(map[string]string)
+	for name, capturesForName := range multiCaptures {
+		captures[name] = capturesForName[0]
 	}
 
 	return captures, nil
@@ -115,7 +112,7 @@ func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
 
 // ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
 func (g* Grok) ParseToMultiMap(pattern string, text string) (map[string][]string, error) {
-	captures := make(map[string][]string)
+	multiCaptures := make(map[string][]string)
 	cr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
@@ -124,11 +121,11 @@ func (g* Grok) ParseToMultiMap(pattern string, text string) (map[string][]string
 	match := cr.FindStringSubmatch(text)
 	for i, name := range cr.SubexpNames() {
 		if len(match) > 0 {
-			captures[name] = append(captures[name], match[i])
+			multiCaptures[name] = append(multiCaptures[name], match[i])
 		}
 	}
 
-	return captures, nil
+	return multiCaptures, nil
 }
 
 // AddPatternsFromPath loads grok patterns from a file or files from a directory

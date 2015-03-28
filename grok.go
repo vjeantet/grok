@@ -113,6 +113,24 @@ func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
 	return captures, nil
 }
 
+// ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
+func (g* Grok) ParseToMultiMap(pattern string, text string) (map[string][]string, error) {
+	captures := make(map[string][]string)
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	match := cr.FindStringSubmatch(text)
+	for i, name := range cr.SubexpNames() {
+		if len(match) > 0 {
+			captures[name] = append(captures[name], match[i])
+		}
+	}
+
+	return captures, nil
+}
+
 // AddPatternsFromPath loads grok patterns from a file or files from a directory
 func (g *Grok) AddPatternsFromPath(path string) error {
 

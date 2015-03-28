@@ -125,6 +125,24 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestParseToMultiMap(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	res, _ := g.ParseToMultiMap("%{DAY} %{DAY} %{DAY}", "Tue Wed Fri")
+	if len(res["DAY"]) != 3 {
+		t.Fatalf("DAY should be an array of 3 elements, but is '%s'", res["DAY"])
+	}
+	if res["DAY"][0] != "Tue" {
+		t.Fatalf("DAY[0] should be 'Tue' have '%s'", res["DAY"][0])
+	}
+	if res["DAY"][1] != "Wed" {
+		t.Fatalf("DAY[1] should be 'Wed' have '%s'", res["DAY"][1])
+	}
+	if res["DAY"][2] != "Fri" {
+		t.Fatalf("DAY[2] should be 'Fri' have '%s'", res["DAY"][2])
+	}
+}
+
 func TestCaptures(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")

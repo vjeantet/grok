@@ -125,6 +125,15 @@ func TestParse(t *testing.T) {
 	}
 }
 
+func TestErrorParseToMultiMap(t *testing.T) {
+	g := New()
+	pattern := "%{UNKNOWPATTERN}"
+	_, err := g.ParseToMultiMap(pattern, "")
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
+}
+
 func TestParseToMultiMap(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")

@@ -97,21 +97,24 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 
 // Parse returns a string map with captured string based on provided pattern over the text
 func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
-	multiCaptures, err := g.ParseToMultiMap(pattern, text)
+	cr, err := g.compile(pattern)
 	if err != nil {
-		return  nil, err
+		return nil, err
 	}
 
+	match := cr.FindStringSubmatch(text)
 	captures := make(map[string]string)
-	for name, capturesForName := range multiCaptures {
-		captures[name] = capturesForName[0]
+	for i, name := range cr.SubexpNames() {
+		if len(match) > 0 {
+			captures[name] = match[i]
+		}
 	}
 
 	return captures, nil
 }
 
 // ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
-func (g* Grok) ParseToMultiMap(pattern string, text string) (map[string][]string, error) {
+func (g *Grok) ParseToMultiMap(pattern string, text string) (map[string][]string, error) {
 	multiCaptures := make(map[string][]string)
 	cr, err := g.compile(pattern)
 	if err != nil {

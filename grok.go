@@ -97,19 +97,20 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 
 // Parse returns a string map with captured string based on provided pattern over the text
 func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
+	captures := make(map[string]string)
 	cr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
 	}
 
 	match := cr.FindStringSubmatch(text)
-	captures := make(map[string]string)
 	if len(match) > 0 {
 		for i, name := range cr.SubexpNames() {
+			if name != "" {
 				captures[name] = match[i]
+			}
 		}
 	}
-
 
 	return captures, nil
 }
@@ -125,7 +126,9 @@ func (g *Grok) ParseToMultiMap(pattern string, text string) (map[string][]string
 	match := cr.FindStringSubmatch(text)
 	if len(match) > 0 {
 		for i, name := range cr.SubexpNames() {
+			if name != "" {
 				multiCaptures[name] = append(multiCaptures[name], match[i])
+			}
 		}
 	}
 
@@ -134,7 +137,6 @@ func (g *Grok) ParseToMultiMap(pattern string, text string) (map[string][]string
 
 // AddPatternsFromPath loads grok patterns from a file or files from a directory
 func (g *Grok) AddPatternsFromPath(path string) error {
-
 	if fi, err := os.Stat(path); err == nil {
 		if fi.IsDir() {
 			path = path + "/*"
@@ -151,6 +153,7 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 
 		reader := bufio.NewReader(inFile)
 		scanner := bufio.NewScanner(reader)
+		r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
 
 		for scanner.Scan() {
 			l := scanner.Text()
@@ -161,7 +164,6 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 					// names[1] = pattern
 					fileContent[names[0]] = names[1]
 
-					r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
 					keys := []string{}
 					for _, key := range r.FindAllStringSubmatch(names[1], -1) {
 						rawKey := strings.Split(key[1], ":")
@@ -188,19 +190,21 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 
 func denormalizePattern(pattern string, finalPatterns map[string]string) string {
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
-	newPattern := pattern
+
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		customname := names[0]
-		if len(names) != 1 {
-			customname = names[1]
-		}
 		//search for replacements
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[names[0]])
+		var replace string
+		if len(names) == 1 {
+			replace = "(" + finalPatterns[names[0]] + ")"
+		} else {
+			replace = fmt.Sprintf("(?P<%s>%s)", names[1], finalPatterns[names[0]])
+		}
 
 		//build the new regex
-		newPattern = strings.Replace(newPattern, values[0], replace, -1)
+		pattern = strings.Replace(pattern, values[0], replace, -1)
 	}
-	return newPattern
+
+	return pattern
 }

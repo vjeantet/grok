@@ -183,10 +183,6 @@ func TestCaptures(t *testing.T) {
 		"%{COMMONAPACHELOG}",
 		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
 	)
-	check("TIME", "22:58:32",
-		"%{COMMONAPACHELOG}",
-		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
-	)
 	check("timestamp", "23/Apr/2014:22:58:32 +0200",
 		"%{COMMONAPACHELOG}",
 		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
@@ -209,7 +205,6 @@ func TestCaptures(t *testing.T) {
 	check("YEAR", `4999`, "%{YEAR}", `s d9fq4999s ../ sdf`)
 	check("YEAR", `79`, "%{YEAR}", `s d79fq4999s ../ sdf`)
 	check("TIMESTAMP_ISO8601", `2013-11-06 04:50:17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
-	check("SECOND", `17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
 
 	//MAC
 	check("MAC", `01:02:03:04:ab:cf`, "%{MAC}", `s d9fq4999s ../ sdf 2013- 01:02:03:04:ab:cf  11-06 04:50:17,1599sd`)

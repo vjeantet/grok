@@ -106,10 +106,9 @@ func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
 	captures := make(map[string]string)
 	if len(match) > 0 {
 		for i, name := range cr.SubexpNames() {
-				captures[name] = match[i]
+			captures[name] = match[i]
 		}
 	}
-
 
 	return captures, nil
 }
@@ -125,7 +124,7 @@ func (g *Grok) ParseToMultiMap(pattern string, text string) (map[string][]string
 	match := cr.FindStringSubmatch(text)
 	if len(match) > 0 {
 		for i, name := range cr.SubexpNames() {
-				multiCaptures[name] = append(multiCaptures[name], match[i])
+			multiCaptures[name] = append(multiCaptures[name], match[i])
 		}
 	}
 

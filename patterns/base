@@ -1,7 +1,7 @@
 USERNAME [a-zA-Z0-9._-]+
 USER %{USERNAME}
 INT (?:[+-]?(?:[0-9]+))
-BASE10NUM ([+-.0-9]+(?:(?:[0-9]+(?:\.[0-9]+)?)|(?:\.[0-9]+)))
+BASE10NUM ([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)
 NUMBER (?:%{BASE10NUM})
 BASE16NUM (0[xX]?[0-9a-fA-F]+)
 #BASE16FLOAT \b(?<![0-9A-Fa-f.])(?:[+-]?(?:0x)?(?:(?:[0-9A-Fa-f]+(?:\.[0-9A-Fa-f]*)?)|(?:\.[0-9A-Fa-f]+)))\b
@@ -27,8 +27,7 @@ IP (?:%{IPV6}|%{IPV4})
 HOSTNAME \b(?:[0-9A-Za-z][0-9A-Za-z-]{0,62})(?:\.(?:[0-9A-Za-z][0-9A-Za-z-]{0,62}))*(\.?|\b)
 HOST %{HOSTNAME}
 IPORHOST (?:%{HOSTNAME}|%{IP})
-
-HOSTPORT (?:%{IPORHOST=~/\./}:%{POSINT})
+HOSTPORT %{IPORHOST}:%{POSINT}
 
 # paths
 PATH (?:%{UNIXPATH}|%{WINPATH})

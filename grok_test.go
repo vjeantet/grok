@@ -221,6 +221,13 @@ func TestCaptures(t *testing.T) {
 	check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
 	check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
 
+	//BASE10NUM
+	check("BASE10NUM", `1`, "%{BASE10NUM}", `1`) // this is a nice one
+	check("BASE10NUM", `8080`, "%{BASE10NUM}", `qsfd8080qsfd`)
+
+	//HOSTPORT
+	check("HOSTNAME", `google.com`, "%{HOSTPORT}", `google.com:8080`)
+	check("POSINT", `8080`, "%{HOSTPORT}", `google.com:8080`)
 }
 
 // Should be run with -race

@@ -52,29 +52,12 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 		return g.compiledPattern[pattern], nil
 	}
 
-	//search for %{...:...}
-	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
-
-	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
-		names := strings.Split(values[1], ":")
-
-		//search for replacements
-		if ok := g.patterns[names[0]]; ok == "" {
-			return nil, fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
-		}
-
-		var replace string
-		if len(names) == 1 {
-			replace = "(" + g.patterns[names[0]] + ")"
-		} else {
-			replace = fmt.Sprintf("(?P<%s>%s)", names[1], g.patterns[names[0]])
-		}
-
-		//build the new regex
-		pattern = strings.Replace(pattern, values[0], replace, -1)
+	newPattern, err := denormalizePattern(pattern, g.patterns)
+	if err != nil {
+		return nil, err
 	}
 
-	compiledRegex, err := regexp.Compile(pattern)
+	compiledRegex, err := regexp.Compile(newPattern)
 	if err != nil {
 		return nil, err
 	}
@@ -184,30 +167,45 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 
 	var denormalizedPattern = map[string]string{}
 	for _, key := range order {
-		denormalizedPattern[key] = denormalizePattern(fileContent[key], denormalizedPattern)
-		g.AddPattern(key, denormalizedPattern[key])
+		pattern, err := denormalizePattern(fileContent[key], denormalizedPattern)
+		if err != nil {
+			return err
+		}
+
+		denormalizedPattern[key] = pattern
+		g.AddPattern(key, pattern)
 	}
 
 	return nil
 }
 
-func denormalizePattern(pattern string, finalPatterns map[string]string) string {
+func denormalizePattern(pattern string, storedPatterns map[string]string) (string, error) {
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
 
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
+		syntax, semantic := names[0], ""
+		if len(names) > 1 {
+			semantic = names[1]
+		}
+
+		storedPattern, ok := storedPatterns[syntax]
+		if !ok {
+			return "", fmt.Errorf("no pattern found for %%{%s}", syntax)
+		}
+
 		//search for replacements
 		var replace string
 		if len(names) == 1 {
-			replace = "(" + finalPatterns[names[0]] + ")"
+			replace = "(" + storedPattern + ")"
 		} else {
-			replace = fmt.Sprintf("(?P<%s>%s)", names[1], finalPatterns[names[0]])
+			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
 		}
 
 		//build the new regex
 		pattern = strings.Replace(pattern, values[0], replace, -1)
 	}
 
-	return pattern
+	return pattern, nil
 }

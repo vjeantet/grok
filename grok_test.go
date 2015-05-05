@@ -119,15 +119,15 @@ func TestErrorCaptureUnknowPattern(t *testing.T) {
 func TestParse(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
-	res, _ := g.Parse("%{DAY}", "Tue qds")
-	if res["DAY"] != "Tue" {
-		t.Fatalf("DAY should be 'Tue' have '%s'", res["DAY"])
+	res, _ := g.Parse("%{DAY:day}", "Tue qds")
+	if res["day"] != "Tue" {
+		t.Fatalf("DAY should be 'Tue' have '%s'", res["day"])
 	}
 }
 
 func TestErrorParseToMultiMap(t *testing.T) {
 	g := New()
-	pattern := "%{UNKNOWPATTERN}"
+	pattern := "%{UNKNOWNPATTERN:up}"
 	_, err := g.ParseToMultiMap(pattern, "")
 	if err == nil {
 		t.Fatal("Expected error not set")
@@ -137,18 +137,18 @@ func TestErrorParseToMultiMap(t *testing.T) {
 func TestParseToMultiMap(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
-	res, _ := g.ParseToMultiMap("%{DAY} %{DAY} %{DAY}", "Tue Wed Fri")
-	if len(res["DAY"]) != 3 {
-		t.Fatalf("DAY should be an array of 3 elements, but is '%s'", res["DAY"])
+	res, _ := g.ParseToMultiMap("%{DAY:day} %{DAY:day} %{DAY:day}", "Tue Wed Fri")
+	if len(res["day"]) != 3 {
+		t.Fatalf("day[] should be an array of 3 elements, but is '%s'", res["day"])
 	}
-	if res["DAY"][0] != "Tue" {
-		t.Fatalf("DAY[0] should be 'Tue' have '%s'", res["DAY"][0])
+	if res["day"][0] != "Tue" {
+		t.Fatalf("day[0] should be 'Tue' have '%s'", res["DAY"][0])
 	}
-	if res["DAY"][1] != "Wed" {
-		t.Fatalf("DAY[1] should be 'Wed' have '%s'", res["DAY"][1])
+	if res["day"][1] != "Wed" {
+		t.Fatalf("day[1] should be 'Wed' have '%s'", res["DAY"][1])
 	}
-	if res["DAY"][2] != "Fri" {
-		t.Fatalf("DAY[2] should be 'Fri' have '%s'", res["DAY"][2])
+	if res["day"][2] != "Fri" {
+		t.Fatalf("day[2] should be 'Fri' have '%s'", res["DAY"][2])
 	}
 }
 
@@ -167,8 +167,8 @@ func TestCaptures(t *testing.T) {
 		}
 	}
 
-	check("DAY", "Tue",
-		"%{DAY}",
+	check("day", "Tue",
+		"%{DAY:day}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
 	check("jour", "Tue",
@@ -193,29 +193,28 @@ func TestCaptures(t *testing.T) {
 	)
 
 	//PATH
-	check("WINPATH", `c:\winfows\sdf.txt`, "%{WINPATH}", `s dfqs c:\winfows\sdf.txt`)
-	check("WINPATH", `\\sdf\winfows\sdf.txt`, "%{WINPATH}", `s dfqs \\sdf\winfows\sdf.txt`)
-	check("UNIXPATH", `/usr/lib/`, "%{UNIXPATH}", `s dfqs /usr/lib/ sqfd`)
-	check("UNIXPATH", `/usr/lib`, "%{UNIXPATH}", `s dfqs /usr/lib sqfd`)
-	check("UNIXPATH", `/usr/`, "%{UNIXPATH}", `s dfqs /usr/ sqfd`)
-	check("UNIXPATH", `/usr`, "%{UNIXPATH}", `s dfqs /usr sqfd`)
-	check("UNIXPATH", `/`, "%{UNIXPATH}", `s dfqs / sqfd`)
+	check("path", `c:\winfows\sdf.txt`, "%{WINPATH:path}", `s dfqs c:\winfows\sdf.txt`)
+	check("path", `\\sdf\winfows\sdf.txt`, "%{WINPATH:path}", `s dfqs \\sdf\winfows\sdf.txt`)
+	check("path", `/usr/lib/`, "%{UNIXPATH:path}", `s dfqs /usr/lib/ sqfd`)
+	check("path", `/usr/lib`, "%{UNIXPATH:path}", `s dfqs /usr/lib sqfd`)
+	check("path", `/usr/`, "%{UNIXPATH:path}", `s dfqs /usr/ sqfd`)
+	check("path", `/usr`, "%{UNIXPATH:path}", `s dfqs /usr sqfd`)
+	check("path", `/`, "%{UNIXPATH:path}", `s dfqs / sqfd`)
 
 	//YEAR
-	check("YEAR", `4999`, "%{YEAR}", `s d9fq4999s ../ sdf`)
-	check("YEAR", `79`, "%{YEAR}", `s d79fq4999s ../ sdf`)
-	check("TIMESTAMP_ISO8601", `2013-11-06 04:50:17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
+	check("year", `4999`, "%{YEAR:year}", `s d9fq4999s ../ sdf`)
+	check("year", `79`, "%{YEAR:year}", `s d79fq4999s ../ sdf`)
+	check("timestamp", `2013-11-06 04:50:17,1599`, "%{TIMESTAMP_ISO8601:timestamp}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
 
 	//MAC
-	check("MAC", `01:02:03:04:ab:cf`, "%{MAC}", `s d9fq4999s ../ sdf 2013- 01:02:03:04:ab:cf  11-06 04:50:17,1599sd`)
-	check("MAC", `01-02-03-04-ab-cd`, "%{MAC}", `s d9fq4999s ../ sdf 2013- 01-02-03-04-ab-cd  11-06 04:50:17,1599sd`)
+	check("mac", `01:02:03:04:ab:cf`, "%{MAC:mac}", `s d9fq4999s ../ sdf 2013- 01:02:03:04:ab:cf  11-06 04:50:17,1599sd`)
+	check("mac", `01-02-03-04-ab-cd`, "%{MAC:mac}", `s d9fq4999s ../ sdf 2013- 01-02-03-04-ab-cd  11-06 04:50:17,1599sd`)
 
 	//QUOTEDSTRING
-	check("QUOTEDSTRING", `"lkj"`, "%{QUOTEDSTRING}", `qsdklfjqsd fk"lkj"mkj`)
-	check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
-	check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
-	check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
-
+	check("qs", `"lkj"`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd fk"lkj"mkj`)
+	check("qs", `'lkj'`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd fk'lkj'mkj`)
+	check("qs", `"fk'lkj'm"`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd "fk'lkj'm"kj`)
+	check("qs", `'fk"lkj"m'`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd 'fk"lkj"m'kj`)
 }
 
 // Should be run with -race
@@ -234,9 +233,9 @@ func TestConcurentParse(t *testing.T) {
 		}
 	}
 
-	go check("QUOTEDSTRING", `"lkj"`, "%{QUOTEDSTRING}", `qsdklfjqsd fk"lkj"mkj`)
-	go check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
-	go check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
-	go check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
-	go check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
+	go check("qs", `"lkj"`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd fk"lkj"mkj`)
+	go check("qs", `'lkj'`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd fk'lkj'mkj`)
+	go check("qs", `'lkj'`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd fk'lkj'mkj`)
+	go check("qs", `"fk'lkj'm"`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd "fk'lkj'm"kj`)
+	go check("qs", `'fk"lkj"m'`, "%{QUOTEDSTRING:qs}", `qsdklfjqsd 'fk"lkj"m'kj`)
 }

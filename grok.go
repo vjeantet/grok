@@ -54,30 +54,33 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 
 	//search for %{...:...}
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
-	newPattern := pattern
+
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		customname := names[0]
-		if len(names) != 1 {
-			customname = names[1]
-		}
 		//search for replacements
 		if ok := g.patterns[names[0]]; ok == "" {
 			return nil, fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
 		}
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
-		//build the new regexp
-		newPattern = strings.Replace(newPattern, values[0], replace, -1)
-	}
-	patternCompiled, err := regexp.Compile(newPattern)
 
+		var replace string
+		if len(names) == 1 {
+			replace = "(" + g.patterns[names[0]] + ")"
+		} else {
+			replace = fmt.Sprintf("(?P<%s>%s)", names[1], g.patterns[names[0]])
+		}
+
+		//build the new regex
+		pattern = strings.Replace(pattern, values[0], replace, -1)
+	}
+
+	compiledRegex, err := regexp.Compile(pattern)
 	if err != nil {
 		return nil, err
 	}
-	g.cache(pattern, patternCompiled)
-	return patternCompiled, nil
 
+	g.cache(pattern, compiledRegex)
+	return compiledRegex, nil
 }
 
 // Match returns true when text match the compileed pattern

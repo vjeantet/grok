@@ -11,11 +11,13 @@ A simple library to use/parse grok patterns in Go.
 Make sure you have a working Go environment.
 
 ```sh
-go get github.com/gemsi/grok```
+go get github.com/gemsi/grok
+```
 
 # Use in your project
 ```go
-import "github.com/gemsi/grok"```
+import "github.com/gemsi/grok"
+```
 
 # Example
 ```go

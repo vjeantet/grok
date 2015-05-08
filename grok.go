@@ -160,11 +160,10 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 					// names[1] = pattern
 					fileContent[names[0]] = names[1]
 
-					r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+					r, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
 					keys := []string{}
 					for _, key := range r.FindAllStringSubmatch(names[1], -1) {
-						rawKey := strings.Split(key[1], ":")
-						keys = append(keys, rawKey[0])
+						keys = append(keys, key[1])
 					}
 					patternDependancies[names[0]] = keys
 				}
@@ -186,17 +185,15 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 }
 
 func denormalizePattern(pattern string, finalPatterns map[string]string) string {
-	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+	r, _ := regexp.Compile(`%{((\w+):?(\w+)?)}`)
 	newPattern := pattern
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
-		names := strings.Split(values[1], ":")
-
-		customname := names[0]
-		if len(names) != 1 {
-			customname = names[1]
+		customname := values[2]
+		if values[3] != "" {
+			customname = values[3]
 		}
 		//search for replacements
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[names[0]])
+		replace := fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[values[2]])
 
 		//build the new regex
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)

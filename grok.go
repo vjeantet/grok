@@ -150,6 +150,7 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 
 		reader := bufio.NewReader(inFile)
 		scanner := bufio.NewScanner(reader)
+		r, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
 
 		for scanner.Scan() {
 			l := scanner.Text()
@@ -160,7 +161,6 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 					// names[1] = pattern
 					fileContent[names[0]] = names[1]
 
-					r, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
 					keys := []string{}
 					for _, key := range r.FindAllStringSubmatch(names[1], -1) {
 						keys = append(keys, key[1])

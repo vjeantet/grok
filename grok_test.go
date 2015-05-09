@@ -10,16 +10,27 @@ func TestNew(t *testing.T) {
 
 }
 
+func TestAddPatternsFromPath(t *testing.T) {
+	g := New()
+	err := g.AddPatternsFromPath("./Lorem ipsum Minim qui in.")
+	if err == nil {
+		t.Fatalf("AddPatternsFromPath should returns an error when path is invalid")
+	}
+}
+
 func TestAddPattern(t *testing.T) {
 	g := New()
 	name := "DAYO"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
-	c_patterns := len(g.patterns)
-	g.AddPattern(name, pattern)
-	g.AddPattern(name+"2", pattern)
+	c_patterns := len(g.patterns[DEFAULTCAPTURE])
+	g.AddPattern(name, pattern, pattern)
+	g.AddPattern(name+"2", pattern, pattern)
 
-	if len(g.patterns) != c_patterns+2 {
-		t.Fatalf("%d patterns should be available, have %d", c_patterns+2, len(g.patterns))
+	if len(g.patterns[DEFAULTCAPTURE]) != c_patterns+2 {
+		t.Fatalf("%d Default patterns should be available, have %d", c_patterns+2, len(g.patterns))
+	}
+	if len(g.patterns[NAMEDCAPTURE]) != c_patterns+2 {
+		t.Fatalf("%d NamedCapture patterns should be available, have %d", c_patterns+2, len(g.patterns))
 	}
 }
 
@@ -50,9 +61,9 @@ func TestErrorMatch(t *testing.T) {
 
 func TestDayCompile(t *testing.T) {
 	g := New()
-	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
+	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	pattern := "%{DAY}"
-	_, err := g.compile(pattern)
+	_, err := g.compile(pattern, DEFAULTCAPTURE)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -60,7 +71,7 @@ func TestDayCompile(t *testing.T) {
 
 func TestErrorCompile(t *testing.T) {
 	g := New()
-	_, err := g.compile("(")
+	_, err := g.compile("(", DEFAULTCAPTURE)
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
@@ -137,28 +148,106 @@ func TestErrorParseToMultiMap(t *testing.T) {
 func TestParseToMultiMap(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
-	res, _ := g.ParseToMultiMap("%{DAY} %{DAY} %{DAY}", "Tue Wed Fri")
-	if len(res["DAY"]) != 3 {
-		t.Fatalf("DAY should be an array of 3 elements, but is '%s'", res["DAY"])
+	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if len(res["TIME"]) != 2 {
+		t.Fatalf("DAY should be an array of 3 elements, but is '%s'", res["TIME"])
 	}
-	if res["DAY"][0] != "Tue" {
-		t.Fatalf("DAY[0] should be 'Tue' have '%s'", res["DAY"][0])
+	if res["TIME"][0] != "23:58:32" {
+		t.Fatalf("TIME[0] should be '23:58:32' have '%s'", res["TIME"][0])
 	}
-	if res["DAY"][1] != "Wed" {
-		t.Fatalf("DAY[1] should be 'Wed' have '%s'", res["DAY"][1])
-	}
-	if res["DAY"][2] != "Fri" {
-		t.Fatalf("DAY[2] should be 'Fri' have '%s'", res["DAY"][2])
+	if res["TIME"][1] != "22:58:32" {
+		t.Fatalf("TIME[1] should be '22:58:32' have '%s'", res["TIME"][1])
 	}
 }
 
-func TestCaptures(t *testing.T) {
+func TestParseToMultiMapOnlyNamedCaptures(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE)
+	if len(res["timestamp"]) != 2 {
+		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
+	}
+	if res["timestamp"][0] != "23/Apr/2014:22:58:32 +0200" {
+		t.Fatalf("timestamp[0] should be '23/Apr/2014:22:58:32 +0200' have '%s'", res["DAY"][0])
+	}
+	if res["timestamp"][1] != "24/Apr/2014:22:58:32 +0200" {
+		t.Fatalf("timestamp[1] should be '24/Apr/2014:22:58:32 +0200' have '%s'", res["DAY"][1])
+	}
+}
+
+func TestCaptureAll(t *testing.T) {
 	g := New()
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
 
 		if captures, err := g.Parse(pattern, text); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if captures[key] != value {
+				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+			}
+		}
+	}
+
+	check("timestamp", "23/Apr/2014:22:58:32 +0200",
+		"%{COMMONAPACHELOG}",
+		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
+	)
+	check("TIME", "22:58:32",
+		"%{COMMONAPACHELOG}",
+		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
+	)
+	check("SECOND", `17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
+	check("HOSTNAME", `google.com`, "%{HOSTPORT}", `google.com:8080`)
+	//HOSTPORT
+	check("POSINT", `8080`, "%{HOSTPORT}", `google.com:8080`)
+}
+
+func TestNamedCapture(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+
+	check := func(key, value, pattern, text string) {
+
+		if captures, err := g.Parse(pattern, text, NAMEDCAPTURE); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if captures[key] != value {
+				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+			}
+		}
+	}
+
+	check("timestamp", "23/Apr/2014:22:58:32 +0200",
+		"%{COMMONAPACHELOG}",
+		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
+	)
+	check("TIME", "",
+		"%{COMMONAPACHELOG}",
+		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
+	)
+	check("SECOND", ``, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
+	check("HOSTNAME", ``, "%{HOSTPORT}", `google.com:8080`)
+	//HOSTPORT
+	check("POSINT", ``, "%{HOSTPORT}", `google.com:8080`)
+}
+
+func TestCapturesAndNamedCapture(t *testing.T) {
+	g := New()
+	g.AddPatternsFromPath("./patterns")
+
+	check := func(key, value, pattern, text string) {
+
+		if captures, err := g.Parse(pattern, text); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if captures[key] != value {
+				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+			}
+		}
+
+		if captures, err := g.Parse(pattern, text, NAMEDCAPTURE); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
 			if captures[key] != value {
@@ -180,10 +269,6 @@ func TestCaptures(t *testing.T) {
 		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
 	)
 	check("verb", "GET",
-		"%{COMMONAPACHELOG}",
-		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
-	)
-	check("TIME", "22:58:32",
 		"%{COMMONAPACHELOG}",
 		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
 	)
@@ -209,7 +294,6 @@ func TestCaptures(t *testing.T) {
 	check("YEAR", `4999`, "%{YEAR}", `s d9fq4999s ../ sdf`)
 	check("YEAR", `79`, "%{YEAR}", `s d79fq4999s ../ sdf`)
 	check("TIMESTAMP_ISO8601", `2013-11-06 04:50:17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
-	check("SECOND", `17,1599`, "%{TIMESTAMP_ISO8601}", `s d9fq4999s ../ sdf 2013-11-06 04:50:17,1599sd`)
 
 	//MAC
 	check("MAC", `01:02:03:04:ab:cf`, "%{MAC}", `s d9fq4999s ../ sdf 2013- 01:02:03:04:ab:cf  11-06 04:50:17,1599sd`)
@@ -225,9 +309,6 @@ func TestCaptures(t *testing.T) {
 	check("BASE10NUM", `1`, "%{BASE10NUM}", `1`) // this is a nice one
 	check("BASE10NUM", `8080`, "%{BASE10NUM}", `qsfd8080qsfd`)
 
-	//HOSTPORT
-	check("HOSTNAME", `google.com`, "%{HOSTPORT}", `google.com:8080`)
-	check("POSINT", `8080`, "%{HOSTPORT}", `google.com:8080`)
 }
 
 // Should be run with -race

@@ -15,9 +15,17 @@ Make sure you have the a working Go environment.
 # Use in your project
 ```import "github.com/gemsi/grok"```
 
-
-# Example
+# Usage
+```go
+g := grok.New()
+values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,grok.NAMEDCAPTURE)
 ```
+values is a map with all captured groups
+values2 contains only named captures
+
+# Examples 
+```go
 package main
 
 import (
@@ -64,4 +72,41 @@ COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP
            IPV4: 
          MINUTE: 58
      rawrequest: 
+```
+
+# Example 2
+```go
+package main
+
+import (
+  "fmt"
+
+  "github.com/gemsi/grok"
+)
+
+func main() {
+  g := grok.New()
+  values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, grok.NAMEDCAPTURE)
+
+  for k, v := range values {
+    fmt.Printf("%+15s: %s\n", k, v)
+  }
+}
+```
+
+output:
+```
+      timestamp: 23/Apr/2014:22:58:32 +0200
+           verb: GET
+     rawrequest: 
+          bytes: 207
+           auth: -
+        request: /index.php
+    httpversion: 1.1
+       response: 404
+               : 207
+COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
+       clientip: 127.0.0.1
+          ident: -
+
 ```

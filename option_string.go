@@ -4,9 +4,9 @@ package grok
 
 import "fmt"
 
-const _Option_name = "DEFAULTCAPTURENAMEDCAPTURE"
+const _Option_name = "DEFAULTCAPTURENAMEDCAPTURENODEFAULTPATTERNS"
 
-var _Option_index = [...]uint8{0, 14, 26}
+var _Option_index = [...]uint8{0, 14, 26, 43}
 
 func (i Option) String() string {
 	if i+1 >= Option(len(_Option_index)) {

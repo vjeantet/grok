@@ -1,4 +1,5 @@
 //go:generate stringer -type=Option
+//go:generate patternstoregex
 
 package grok
 
@@ -18,6 +19,7 @@ type Option uint
 const (
 	DEFAULTCAPTURE Option = iota
 	NAMEDCAPTURE
+	NODEFAULTPATTERNS
 )
 
 // Grok Type
@@ -28,13 +30,23 @@ type Grok struct {
 }
 
 // New returns a Grok struct
-func New() *Grok {
+func New(opt ...Option) *Grok {
 	o := new(Grok)
 	o.patterns = patterns
 	o.compiledPattern = map[Option]map[string]*regexp.Regexp{
 		DEFAULTCAPTURE: map[string]*regexp.Regexp{},
 		NAMEDCAPTURE:   map[string]*regexp.Regexp{},
 	}
+
+	for _, v := range opt {
+		if v == NODEFAULTPATTERNS {
+			o.patterns = map[Option]map[string]string{
+				DEFAULTCAPTURE: map[string]string{},
+				NAMEDCAPTURE:   map[string]string{},
+			}
+		}
+	}
+
 	return o
 }
 
@@ -264,4 +276,9 @@ func denormalizePattern(pattern string, finalPatterns map[Option]map[string]stri
 	}
 
 	return newPatternDF, newPatternNC
+}
+
+func (g *Grok) Patterns() map[Option]map[string]string {
+
+	return g.patterns
 }

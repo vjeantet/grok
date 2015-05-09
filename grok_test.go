@@ -10,7 +10,18 @@ func TestNew(t *testing.T) {
 	if g == nil {
 		t.Fatal("error")
 	}
+	p := g.Patterns()
+	if len(p[DEFAULTCAPTURE]) == 0 || len(p[NAMEDCAPTURE]) == 0 {
+		t.Fatal("the Grok object should  have some patterns pre loaded")
+	}
+}
 
+func TestNewWithNoDefaultPatterns(t *testing.T) {
+	g := New(NODEFAULTPATTERNS)
+	p := g.Patterns()
+	if len(p[DEFAULTCAPTURE]) > 0 || len(p[NAMEDCAPTURE]) > 0 {
+		t.Fatal("Using NODEFAULTPATTERNS the Grok object should not have any patterns pre loaded")
+	}
 }
 
 func TestAddPatternsFromPath(t *testing.T) {
@@ -348,5 +359,12 @@ func TestOptionStringOutOfRange(t *testing.T) {
 func TestOptionString(t *testing.T) {
 	if DEFAULTCAPTURE.String() != "DEFAULTCAPTURE" {
 		t.Fatalf("DEFAULTCAPTURE should return a string '%s'", DEFAULTCAPTURE.String())
+	}
+}
+
+func TestPatterns(t *testing.T) {
+	g := New()
+	if len(g.Patterns()) != 2 {
+		t.Fatalf("Patterns should return a map with 2 keys have '%s'", len(g.Patterns()))
 	}
 }

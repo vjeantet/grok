@@ -19,7 +19,9 @@ Make sure you have the a working Go environment.
 ```go
 g := grok.New()
 values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
-values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,grok.NAMEDCAPTURE)
+
+g = grok.New(grok.NAMEDCAPTURE)
+values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 ```
 values is a map with all captured groups
 values2 contains only named captures
@@ -85,8 +87,8 @@ import (
 )
 
 func main() {
-  g := grok.New()
-  values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, grok.NAMEDCAPTURE)
+  g := grok.New(grok.NAMEDCAPTURE)
+  values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
   for k, v := range values {
     fmt.Printf("%+15s: %s\n", k, v)

@@ -17,22 +17,33 @@ import (
 type Option uint
 
 const (
-	DEFAULTCAPTURE Option = iota
-	NAMEDCAPTURE
-	NODEFAULTPATTERNS
+	DEFAULTCAPTURE    Option = iota // Parse() And ParseToMulti() will return every group
+	NAMEDCAPTURE                    // Parse() And ParseToMulti() will return only named captures
+	NODEFAULTPATTERNS               // Do not use default patterns compiled in the lib
 )
 
 // Grok Type
 type Grok struct {
-	compiledPattern map[Option]map[string]*regexp.Regexp
-	patterns        map[Option]map[string]string
-	serviceMu       sync.Mutex
+	compiledPattern    map[Option]map[string]*regexp.Regexp
+	patterns           map[Option]map[string]string
+	serviceMu          sync.Mutex
+	defaultCaptureMode Option
 }
 
 // New returns a Grok struct
+// Options availables :
+// grok.NODEFAULTPATTERNS => Do not use compiled-in patterns
+// grok.DEFAULTCAPTURE    => Parse and ParseToMulti will return all groups
+// grok.NAMEDCAPTURE 	  => Parse and ParseToMulti will return only named captures
+// Exemple
+// g := grok.New()
+// g := grok.New(grok.NAMEDCAPTURE)
+// g := grok.New(grok.NAMEDCAPTURE, grok.NODEFAULTPATTERNS)
+// g := grok.New(grok.NODEFAULTPATTERNS, grok.DEFAULTCAPTURE)
 func New(opt ...Option) *Grok {
 	o := new(Grok)
 	o.patterns = patterns
+	o.defaultCaptureMode = DEFAULTCAPTURE
 	o.compiledPattern = map[Option]map[string]*regexp.Regexp{
 		DEFAULTCAPTURE: map[string]*regexp.Regexp{},
 		NAMEDCAPTURE:   map[string]*regexp.Regexp{},
@@ -44,6 +55,9 @@ func New(opt ...Option) *Grok {
 				DEFAULTCAPTURE: map[string]string{},
 				NAMEDCAPTURE:   map[string]string{},
 			}
+		}
+		if v == NAMEDCAPTURE {
+			o.defaultCaptureMode = NAMEDCAPTURE
 		}
 	}
 
@@ -126,10 +140,13 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 // Parse returns a string map with captured string based on provided pattern over the text
 func (g *Grok) Parse(pattern string, text string, options ...Option) (map[string]string, error) {
 	var kindOfCapture Option
-	kindOfCapture = DEFAULTCAPTURE
+	kindOfCapture = g.defaultCaptureMode
 	for _, v := range options {
 		if v == NAMEDCAPTURE {
 			kindOfCapture = NAMEDCAPTURE
+		}
+		if v == DEFAULTCAPTURE {
+			kindOfCapture = DEFAULTCAPTURE
 		}
 	}
 
@@ -157,17 +174,20 @@ func (g *Grok) parse(pattern string, text string, kindOfCapture Option) (map[str
 // ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
 func (g *Grok) ParseToMultiMap(pattern string, text string, options ...Option) (map[string][]string, error) {
 	var kindOfCapture Option
-	kindOfCapture = DEFAULTCAPTURE
+	kindOfCapture = g.defaultCaptureMode
 	for _, v := range options {
 		if v == NAMEDCAPTURE {
 			kindOfCapture = NAMEDCAPTURE
+		}
+		if v == DEFAULTCAPTURE {
+			kindOfCapture = DEFAULTCAPTURE
 		}
 	}
 
 	return g.parseToMultiMap(pattern, text, kindOfCapture)
 }
 
-// ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
+// parseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
 func (g *Grok) parseToMultiMap(pattern string, text string, kindOfCapture Option) (map[string][]string, error) {
 	multiCaptures := make(map[string][]string)
 	cr, err := g.compile(pattern, kindOfCapture)

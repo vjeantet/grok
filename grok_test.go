@@ -16,6 +16,109 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestParseWithDefaultCaptureMode(t *testing.T) {
+	g := New(NAMEDCAPTURE)
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "", captures["TIME"])
+		}
+	}
+
+	g = New()
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "22:58:32" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
+		}
+	}
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, DEFAULTCAPTURE); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "22:58:32" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
+		}
+	}
+
+	g = New(DEFAULTCAPTURE)
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "22:58:32" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
+		}
+	}
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "", captures["TIME"])
+		}
+	}
+}
+
+func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
+	g := New(NAMEDCAPTURE)
+
+	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if len(res["TIME"]) != 0 {
+		t.Fatalf("DAY should be an array of 0 elements, but is '%s'", res["TIME"])
+	}
+
+	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, DEFAULTCAPTURE)
+	if len(res["TIME"]) != 2 {
+		t.Fatalf("TIME should be an array of 0 elements, but is '%s'", res["TIME"])
+	}
+	if res["TIME"][0] != "23:58:32" {
+		t.Fatalf("TIME[0] should be '23:58:32' have '%s'", res["TIME"][0])
+	}
+	if res["TIME"][1] != "22:58:32" {
+		t.Fatalf("TIME[1] should be '22:58:32' have '%s'", res["TIME"][1])
+	}
+
+	g = New()
+	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if len(res["TIME"]) != 2 {
+		t.Fatalf("TIME should be an array of 2 elements, but is '%s'", res["TIME"])
+	}
+	if len(res["timestamp"]) != 2 {
+		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
+	}
+
+	g = New(DEFAULTCAPTURE)
+	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if len(res["TIME"]) != 2 {
+		t.Fatalf("TIME should be an array of 2 elements, but is '%s'", res["TIME"])
+	}
+	if len(res["timestamp"]) != 2 {
+		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
+	}
+	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE)
+	if len(res["TIME"]) != 0 {
+		t.Fatalf("TIME should be an array of 0 elements, but is '%s'", res["TIME"])
+	}
+	if len(res["timestamp"]) != 2 {
+		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
+	}
+}
+
 func TestNewWithNoDefaultPatterns(t *testing.T) {
 	g := New(NODEFAULTPATTERNS)
 	p := g.Patterns()

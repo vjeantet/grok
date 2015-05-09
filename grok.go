@@ -31,15 +31,16 @@ type Grok struct {
 }
 
 // New returns a Grok struct
-// Options availables :
-// grok.NODEFAULTPATTERNS => Do not use compiled-in patterns
-// grok.DEFAULTCAPTURE    => Parse and ParseToMulti will return all groups
-// grok.NAMEDCAPTURE 	  => Parse and ParseToMulti will return only named captures
-// Exemple
-// g := grok.New()
-// g := grok.New(grok.NAMEDCAPTURE)
-// g := grok.New(grok.NAMEDCAPTURE, grok.NODEFAULTPATTERNS)
-// g := grok.New(grok.NODEFAULTPATTERNS, grok.DEFAULTCAPTURE)
+//  Options availables (any order) :
+//  * grok.NODEFAULTPATTERNS => Do not use compiled-in patterns
+//  * grok.DEFAULTCAPTURE    => Parse and ParseToMulti will return all groups
+//  * grok.NAMEDCAPTURE      => Parse and ParseToMulti will return only named captures
+//
+//  Exemple
+//  g := grok.New()
+//  g := grok.New(grok.NAMEDCAPTURE)
+//  g := grok.New(grok.NAMEDCAPTURE, grok.NODEFAULTPATTERNS)
+//  g := grok.New(grok.NODEFAULTPATTERNS, grok.DEFAULTCAPTURE)
 func New(opt ...Option) *Grok {
 	o := new(Grok)
 	o.patterns = patterns

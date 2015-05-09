@@ -1,12 +1,12 @@
 package grok
 
 // denormalized patterns from patterns/ files
-// var patterns = map[uint]map[string]string{
+// var patterns = map[Option]map[string]string{
 // 	DEFAULTCAPTURE:      map[string]string{},
 // 	NAMEDCAPTURE: map[string]string{},
 // }
 
-var patterns = map[uint]map[string]string{
+var patterns = map[Option]map[string]string{
 	DEFAULTCAPTURE: map[string]string{
 		`AUDIT`:                                     `type=(?P<audit_type>\b\w+\b) msg=audit\((?P<audit_epoch>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))):(?P<audit_counter>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+))))\): user pid=(?P<audit_pid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) uid=(?P<audit_uid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) auid=(?P<audit_audid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) subj=(?P<audit_subject>\b\w+\b) msg=(?P<audit_message>.*) `,
 		`AUDITLOGIN`:                                `type=(?P<audit_type>\b\w+\b) msg=audit\((?P<audit_epoch>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))):(?P<audit_counter>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+))))\): login pid=(?P<audit_pid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) uid=(?P<audit_uid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) old auid=(?P<old_auid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) new auid=(?P<new_auid>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) old ses=(?P<old_ses>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)))) new ses=(?P<new_ses>(?:(?P<BASE10NUM>([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+))))`,

@@ -1,3 +1,5 @@
+//go:generate stringer -type=Option
+
 package grok
 
 import (
@@ -10,15 +12,18 @@ import (
 	"sync"
 )
 
+//Option are used as params with Parse() and ParseToMultiMap()
+type Option uint
+
 const (
-	DEFAULTCAPTURE = iota
+	DEFAULTCAPTURE Option = iota
 	NAMEDCAPTURE
 )
 
 // Grok Type
 type Grok struct {
-	compiledPattern map[uint]map[string]*regexp.Regexp
-	patterns        map[uint]map[string]string
+	compiledPattern map[Option]map[string]*regexp.Regexp
+	patterns        map[Option]map[string]string
 	serviceMu       sync.Mutex
 }
 
@@ -26,7 +31,7 @@ type Grok struct {
 func New() *Grok {
 	o := new(Grok)
 	o.patterns = patterns
-	o.compiledPattern = map[uint]map[string]*regexp.Regexp{
+	o.compiledPattern = map[Option]map[string]*regexp.Regexp{
 		DEFAULTCAPTURE: map[string]*regexp.Regexp{},
 		NAMEDCAPTURE:   map[string]*regexp.Regexp{},
 	}
@@ -39,13 +44,13 @@ func (g *Grok) AddPattern(name string, pattern string, patternnc string) {
 	g.patterns[NAMEDCAPTURE][name] = patternnc
 }
 
-func (g *Grok) cache(pattern string, cr *regexp.Regexp, kindOfCapture uint) {
+func (g *Grok) cache(pattern string, cr *regexp.Regexp, kindOfCapture Option) {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
 	g.compiledPattern[kindOfCapture][pattern] = cr
 }
 
-func (g *Grok) cacheExists(pattern string, kindOfCapture uint) bool {
+func (g *Grok) cacheExists(pattern string, kindOfCapture Option) bool {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
 
@@ -56,7 +61,7 @@ func (g *Grok) cacheExists(pattern string, kindOfCapture uint) bool {
 	return false
 }
 
-func (g *Grok) compile(pattern string, kindOfCapture uint) (*regexp.Regexp, error) {
+func (g *Grok) compile(pattern string, kindOfCapture Option) (*regexp.Regexp, error) {
 	if g.cacheExists(pattern, kindOfCapture) {
 		return g.compiledPattern[kindOfCapture][pattern], nil
 	}
@@ -106,8 +111,8 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 }
 
 // Parse returns a string map with captured string based on provided pattern over the text
-func (g *Grok) Parse(pattern string, text string, options ...uint) (map[string]string, error) {
-	var kindOfCapture uint
+func (g *Grok) Parse(pattern string, text string, options ...Option) (map[string]string, error) {
+	var kindOfCapture Option
 	kindOfCapture = DEFAULTCAPTURE
 	for _, v := range options {
 		if v == NAMEDCAPTURE {
@@ -119,7 +124,7 @@ func (g *Grok) Parse(pattern string, text string, options ...uint) (map[string]s
 }
 
 // Parse returns a string map with captured string (only named or all) based on provided pattern over the text
-func (g *Grok) parse(pattern string, text string, kindOfCapture uint) (map[string]string, error) {
+func (g *Grok) parse(pattern string, text string, kindOfCapture Option) (map[string]string, error) {
 	cr, err := g.compile(pattern, kindOfCapture)
 	if err != nil {
 		return nil, err
@@ -137,8 +142,8 @@ func (g *Grok) parse(pattern string, text string, kindOfCapture uint) (map[strin
 }
 
 // ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
-func (g *Grok) ParseToMultiMap(pattern string, text string, options ...uint) (map[string][]string, error) {
-	var kindOfCapture uint
+func (g *Grok) ParseToMultiMap(pattern string, text string, options ...Option) (map[string][]string, error) {
+	var kindOfCapture Option
 	kindOfCapture = DEFAULTCAPTURE
 	for _, v := range options {
 		if v == NAMEDCAPTURE {
@@ -150,7 +155,7 @@ func (g *Grok) ParseToMultiMap(pattern string, text string, options ...uint) (ma
 }
 
 // ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
-func (g *Grok) parseToMultiMap(pattern string, text string, kindOfCapture uint) (map[string][]string, error) {
+func (g *Grok) parseToMultiMap(pattern string, text string, kindOfCapture Option) (map[string][]string, error) {
 	multiCaptures := make(map[string][]string)
 	cr, err := g.compile(pattern, kindOfCapture)
 	if err != nil {
@@ -213,7 +218,7 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 	order, _ := sortGraph(patternDependancies)
 	order = reverseList(order)
 
-	var denormalizedPattern = map[uint]map[string]string{
+	var denormalizedPattern = map[Option]map[string]string{
 		DEFAULTCAPTURE: map[string]string{},
 		NAMEDCAPTURE:   map[string]string{},
 	}
@@ -226,7 +231,7 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 	return nil
 }
 
-func denormalizePattern(pattern string, finalPatterns map[uint]map[string]string) (string, string) {
+func denormalizePattern(pattern string, finalPatterns map[Option]map[string]string) (string, string) {
 	r, _ := regexp.Compile(`%{((\w+):?(\w+)?)}`)
 	newPatternNC := pattern
 	newPatternDF := pattern

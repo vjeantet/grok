@@ -1,6 +1,9 @@
 package grok
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestNew(t *testing.T) {
 	g := New()
@@ -332,4 +335,18 @@ func TestConcurentParse(t *testing.T) {
 	go check("QUOTEDSTRING", `'lkj'`, "%{QUOTEDSTRING}", `qsdklfjqsd fk'lkj'mkj`)
 	go check("QUOTEDSTRING", `"fk'lkj'm"`, "%{QUOTEDSTRING}", `qsdklfjqsd "fk'lkj'm"kj`)
 	go check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
+}
+
+func TestOptionStringOutOfRange(t *testing.T) {
+	var test Option = 99999
+	expected_value := fmt.Sprintf("Option(%d)", test)
+	if test.String() != expected_value {
+		t.Fatalf("test should return a string '%s', have '%s'", expected_value, test.String())
+	}
+}
+
+func TestOptionString(t *testing.T) {
+	if DEFAULTCAPTURE.String() != "DEFAULTCAPTURE" {
+		t.Fatalf("DEFAULTCAPTURE should return a string '%s'", DEFAULTCAPTURE.String())
+	}
 }

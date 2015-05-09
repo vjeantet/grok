@@ -50,10 +50,11 @@ func New(opt ...Option) *Grok {
 	return o
 }
 
-// AddPattern add a named pattern to grok
-func (g *Grok) AddPattern(name string, pattern string, patternnc string) {
-	g.patterns[DEFAULTCAPTURE][name] = pattern
-	g.patterns[NAMEDCAPTURE][name] = patternnc
+// AddPattern add a pattern to grok
+func (g *Grok) AddPattern(name string, pattern string) {
+	p1, p2 := denormalizePattern(pattern, g.patterns)
+	g.patterns[DEFAULTCAPTURE][name] = p1
+	g.patterns[NAMEDCAPTURE][name] = p2
 }
 
 func (g *Grok) cache(pattern string, cr *regexp.Regexp, kindOfCapture Option) {
@@ -230,14 +231,8 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 	order, _ := sortGraph(patternDependancies)
 	order = reverseList(order)
 
-	var denormalizedPattern = map[Option]map[string]string{
-		DEFAULTCAPTURE: map[string]string{},
-		NAMEDCAPTURE:   map[string]string{},
-	}
-
 	for _, key := range order {
-		denormalizedPattern[DEFAULTCAPTURE][key], denormalizedPattern[NAMEDCAPTURE][key] = denormalizePattern(fileContent[key], denormalizedPattern)
-		g.AddPattern(key, denormalizedPattern[DEFAULTCAPTURE][key], denormalizedPattern[NAMEDCAPTURE][key])
+		g.AddPattern(key, fileContent[key])
 	}
 
 	return nil

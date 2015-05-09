@@ -37,8 +37,8 @@ func TestAddPattern(t *testing.T) {
 	name := "DAYO"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
 	c_patterns := len(g.patterns[DEFAULTCAPTURE])
-	g.AddPattern(name, pattern, pattern)
-	g.AddPattern(name+"2", pattern, pattern)
+	g.AddPattern(name, pattern)
+	g.AddPattern(name+"2", pattern)
 
 	if len(g.patterns[DEFAULTCAPTURE]) != c_patterns+2 {
 		t.Fatalf("%d Default patterns should be available, have %d", c_patterns+2, len(g.patterns))
@@ -75,7 +75,7 @@ func TestErrorMatch(t *testing.T) {
 
 func TestDayCompile(t *testing.T) {
 	g := New()
-	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
+	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	pattern := "%{DAY}"
 	_, err := g.compile(pattern, DEFAULTCAPTURE)
 	if err != nil {

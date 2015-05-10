@@ -1,5 +1,8 @@
 package main
 
+/*
+ This tool translate a set of grok patterns files into a golang regex (RE2) form
+*/
 import (
 	"flag"
 	"fmt"
@@ -12,8 +15,8 @@ import (
 )
 
 var (
-	patternPath = flag.String("input", "./patterns", "input patterns file path")
-	output      = flag.String("output", "./patterns.go", "output file name; default srcdir/patterns.go")
+	input  = flag.String("input", "./patterns", "input patterns file path")
+	output = flag.String("output", "./patterns.go", "output file name; default srcdir/patterns.go")
 )
 
 // Usage is a replacement usage function for the flags package.
@@ -21,8 +24,8 @@ func Usage() {
 	fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\tpatternstoregex [flags] -input [directory]\n")
 	fmt.Fprintf(os.Stderr, "\tpatternstoregex [flags[ -input files...\n")
-	// fmt.Fprintf(os.Stderr, "For more information, see:\n")
-	// fmt.Fprintf(os.Stderr, "\thttp://godoc.org/github.com/gemsi/groke/tools/cmd/patternstoregex\n")
+	fmt.Fprintf(os.Stderr, "For more information, see:\n")
+	fmt.Fprintf(os.Stderr, "\thttp://godoc.org/github.com/gemsi/grok/tools/cmd/patternstoregex\n")
 	fmt.Fprintf(os.Stderr, "Flags:\n")
 	flag.PrintDefaults()
 }
@@ -43,13 +46,12 @@ func main() {
 		args = []string{"."}
 	}
 
-	if !isDirectory(*patternPath) {
-		log.Fatalln("not found 1")
-
+	if !isDirectory(*input) {
+		log.Fatalln(`input file "` + *input + ` is not available`)
 	}
 
 	g := grok.New(grok.NODEFAULTPATTERNS)
-	err := g.AddPatternsFromPath(*patternPath)
+	err := g.AddPatternsFromPath(*input)
 	if err != nil {
 		log.Fatalf("error : %s", err)
 	}

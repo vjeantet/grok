@@ -234,8 +234,6 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 			if len(l) > 0 { // line has text
 				if l[0] != '#' { // line does not start with #
 					names := strings.SplitN(l, " ", 2)
-					// names[0] = key
-					// names[1] = pattern
 					fileContent[names[0]] = names[1]
 
 					keys := []string{}

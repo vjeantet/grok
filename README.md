@@ -5,7 +5,7 @@
          
 
 # grok
-simple library to use/parse grok patterns with go
+simple library to use/parse grok patterns with go (no bindings)
 
 # Installation
 Make sure you have the a working Go environment.
@@ -16,6 +16,13 @@ Make sure you have the a working Go environment.
 ```import "github.com/gemsi/grok"```
 
 # Usage
+## Available patterns and custom ones
+By default this grok lib contains all patterns you can see in src/patterns folder.
+You don't need to add theses patterns.
+When you want to add a custom pattern, use the grok.AddPattern(nameOfPattern, pattern), see the example folder for an example of usage.
+You also can load your custom patterns from a file (or folder) using grok.AddPatternsFromPath(path). 
+
+## Parse all or only named captures 
 ```go
 g := grok.New()
 values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)

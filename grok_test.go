@@ -11,7 +11,13 @@ func TestNew(t *testing.T) {
 		t.Fatal("error")
 	}
 	p := g.Patterns()
-	if len(p[DEFAULTCAPTURE]) == 0 || len(p[NAMEDCAPTURE]) == 0 {
+	if len(p) == 0 {
+		t.Fatal("the Grok object should  have some patterns pre loaded")
+	}
+
+	g = New(NAMEDCAPTURE)
+	p = g.Patterns()
+	if len(p) == 0 {
 		t.Fatal("the Grok object should  have some patterns pre loaded")
 	}
 }
@@ -40,16 +46,6 @@ func TestParseWithDefaultCaptureMode(t *testing.T) {
 			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
 		}
 	}
-	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, DEFAULTCAPTURE); err != nil {
-		t.Fatalf("error can not capture : %s", err.Error())
-	} else {
-		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
-			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
-		}
-		if captures["TIME"] != "22:58:32" {
-			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
-		}
-	}
 
 	g = New(DEFAULTCAPTURE)
 	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
@@ -62,16 +58,6 @@ func TestParseWithDefaultCaptureMode(t *testing.T) {
 			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
 		}
 	}
-	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE); err != nil {
-		t.Fatalf("error can not capture : %s", err.Error())
-	} else {
-		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
-			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
-		}
-		if captures["TIME"] != "" {
-			t.Fatalf("%s should be '%s' have '%s'", "TIME", "", captures["TIME"])
-		}
-	}
 }
 
 func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
@@ -80,17 +66,6 @@ func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
 	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["TIME"]) != 0 {
 		t.Fatalf("DAY should be an array of 0 elements, but is '%s'", res["TIME"])
-	}
-
-	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, DEFAULTCAPTURE)
-	if len(res["TIME"]) != 2 {
-		t.Fatalf("TIME should be an array of 0 elements, but is '%s'", res["TIME"])
-	}
-	if res["TIME"][0] != "23:58:32" {
-		t.Fatalf("TIME[0] should be '23:58:32' have '%s'", res["TIME"][0])
-	}
-	if res["TIME"][1] != "22:58:32" {
-		t.Fatalf("TIME[1] should be '22:58:32' have '%s'", res["TIME"][1])
 	}
 
 	g = New()
@@ -110,19 +85,12 @@ func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
 	if len(res["timestamp"]) != 2 {
 		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
 	}
-	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE)
-	if len(res["TIME"]) != 0 {
-		t.Fatalf("TIME should be an array of 0 elements, but is '%s'", res["TIME"])
-	}
-	if len(res["timestamp"]) != 2 {
-		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
-	}
 }
 
 func TestNewWithNoDefaultPatterns(t *testing.T) {
 	g := New(NODEFAULTPATTERNS)
 	p := g.Patterns()
-	if len(p[DEFAULTCAPTURE]) > 0 || len(p[NAMEDCAPTURE]) > 0 {
+	if len(p) > 0 {
 		t.Fatal("Using NODEFAULTPATTERNS the Grok object should not have any patterns pre loaded")
 	}
 }
@@ -136,18 +104,23 @@ func TestAddPatternsFromPath(t *testing.T) {
 }
 
 func TestAddPattern(t *testing.T) {
-	g := New()
 	name := "DAYO"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
-	c_patterns := len(g.patterns[DEFAULTCAPTURE])
+
+	g := New()
+	cPatterns := len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
-
-	if len(g.patterns[DEFAULTCAPTURE]) != c_patterns+2 {
-		t.Fatalf("%d Default patterns should be available, have %d", c_patterns+2, len(g.patterns))
+	if len(g.patterns) != cPatterns+2 {
+		t.Fatalf("%d Default patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
-	if len(g.patterns[NAMEDCAPTURE]) != c_patterns+2 {
-		t.Fatalf("%d NamedCapture patterns should be available, have %d", c_patterns+2, len(g.patterns))
+
+	g = New(NAMEDCAPTURE)
+	cPatterns = len(g.patterns)
+	g.AddPattern(name, pattern)
+	g.AddPattern(name+"2", pattern)
+	if len(g.patterns) != cPatterns+2 {
+		t.Fatalf("%d NamedCapture patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
 }
 
@@ -180,7 +153,7 @@ func TestDayCompile(t *testing.T) {
 	g := New()
 	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")
 	pattern := "%{DAY}"
-	_, err := g.compile(pattern, DEFAULTCAPTURE)
+	_, err := g.compile(pattern)
 	if err != nil {
 		t.Fatal("Error:", err)
 	}
@@ -188,7 +161,7 @@ func TestDayCompile(t *testing.T) {
 
 func TestErrorCompile(t *testing.T) {
 	g := New()
-	_, err := g.compile("(", DEFAULTCAPTURE)
+	_, err := g.compile("(")
 	if err == nil {
 		t.Fatal("Error:", err)
 	}
@@ -278,9 +251,9 @@ func TestParseToMultiMap(t *testing.T) {
 }
 
 func TestParseToMultiMapOnlyNamedCaptures(t *testing.T) {
-	g := New()
+	g := New(NAMEDCAPTURE)
 	g.AddPatternsFromPath("./patterns")
-	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`, NAMEDCAPTURE)
+	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["timestamp"]) != 2 {
 		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
 	}
@@ -322,12 +295,12 @@ func TestCaptureAll(t *testing.T) {
 }
 
 func TestNamedCapture(t *testing.T) {
-	g := New()
+	g := New(NAMEDCAPTURE)
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
 
-		if captures, err := g.Parse(pattern, text, NAMEDCAPTURE); err != nil {
+		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
 			if captures[key] != value {
@@ -363,8 +336,8 @@ func TestCapturesAndNamedCapture(t *testing.T) {
 				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
 			}
 		}
-
-		if captures, err := g.Parse(pattern, text, NAMEDCAPTURE); err != nil {
+		g = New(NAMEDCAPTURE)
+		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
 			if captures[key] != value {
@@ -453,9 +426,9 @@ func TestConcurentParse(t *testing.T) {
 
 func TestOptionStringOutOfRange(t *testing.T) {
 	var test Option = 99999
-	expected_value := fmt.Sprintf("Option(%d)", test)
-	if test.String() != expected_value {
-		t.Fatalf("test should return a string '%s', have '%s'", expected_value, test.String())
+	expectedValue := fmt.Sprintf("Option(%d)", test)
+	if test.String() != expectedValue {
+		t.Fatalf("test should return a string '%s', have '%s'", expectedValue, test.String())
 	}
 }
 
@@ -466,8 +439,17 @@ func TestOptionString(t *testing.T) {
 }
 
 func TestPatterns(t *testing.T) {
-	g := New()
+	g := New(NODEFAULTPATTERNS)
+	if len(g.Patterns()) != 0 {
+		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
+	}
+	name := "DAY0"
+	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
+
+	g.AddPattern(name, pattern)
+	g.AddPattern(name+"1", pattern)
+
 	if len(g.Patterns()) != 2 {
-		t.Fatalf("Patterns should return a map with 2 keys have '%s'", len(g.Patterns()))
+		t.Fatalf("Patterns should return 2, have '%d'", len(g.Patterns()))
 	}
 }

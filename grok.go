@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -98,20 +99,33 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 	}
 
 	//search for %{...:...}
-	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+	r, _ := regexp.Compile(`%{(\w+:?\w+:?\w+)}`)
 	newPattern := pattern
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
+		//--->fmt.Printf("newPattern= %s\n", newPattern)
+
+		//names[0] will contain the name of the piece
+		//names[1] the custom name (if exists), names[2] the custom type (if exists)
 		names := strings.Split(values[1], ":")
+		//--->fmt.Printf("Values= %q", values[1])
 
 		customname := names[0]
 		if len(names) != 1 {
 			customname = names[1]
 		}
+
+		segmentType := "string"
+		if len(names) == 3 {
+			segmentType = names[2]
+		}
 		//search for replacements
 		if ok := g.patterns[names[0]]; ok == "" {
 			return nil, fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
 		}
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
+		replace := fmt.Sprintf("(?P<%s_%s>%s)", customname, segmentType, g.patterns[names[0]])
+		//replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
+
+		//--->fmt.Printf("Replace=%s\n", replace)
 
 		//build the new regexp
 		newPattern = strings.Replace(newPattern, values[0], replace, -1)
@@ -122,8 +136,8 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 		return nil, err
 	}
 	g.cache(pattern, patternCompiled)
+	//--->fmt.Printf("----->patternCompiled=%s\n", patternCompiled)
 	return patternCompiled, nil
-
 }
 
 // Match returns true when text match the compileed pattern
@@ -153,6 +167,48 @@ func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
 	if len(match) > 0 {
 		for i, name := range cr.SubexpNames() {
 			captures[name] = match[i]
+		}
+	}
+
+	return captures, nil
+}
+
+// Parse returns a inteface{} map with captured fields based on provided pattern over the text
+func (g *Grok) ParseType(pattern string, text string) (map[string]interface{}, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	match := cr.FindStringSubmatch(text)
+	captures := make(map[string]interface{})
+	if len(match) > 0 {
+		for i, nameAndType := range cr.SubexpNames() {
+			if len(nameAndType) != 0 {
+				//fmt.Println("nameAndType: ", nameAndType)
+				separatorIndex := strings.LastIndex(nameAndType, "_")
+				segmentName := nameAndType[:separatorIndex]
+				segmentType := nameAndType[separatorIndex+1:]
+				//fmt.Printf("SegmentName = %s, SegmentType = %s\n", segmentName, segmentType)
+				var value, err interface{}
+				switch segmentType {
+				case "int":
+					//value, err = strconv.Atoi(match[i])
+					value, err = strconv.ParseFloat(match[i], 64)
+					value = int(value.(float64))
+				case "float":
+					value, err = strconv.ParseFloat(match[i], 64)
+				case "string":
+					value = match[i]
+				default:
+					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
+				}
+
+				if err == nil {
+					captures[segmentName] = value
+				}
+			}
+
 		}
 	}
 

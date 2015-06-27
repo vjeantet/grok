@@ -80,6 +80,14 @@ func TestAddPatternsFromPathFileOpenErr(t *testing.T) {
 	}
 }
 
+func TestAddPatternsFromPathFile(t *testing.T) {
+	g := New()
+	err := g.AddPatternsFromPath("./patterns/base")
+	if err != nil {
+		t.Fatalf("err %#v", err)
+	}
+}
+
 func TestAddPatternErr(t *testing.T) {
 	name := "Error"
 	pattern := "%{ERR}"

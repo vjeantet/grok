@@ -1,6 +1,3 @@
-//go:generate stringer -type=Option
-//go:generate patternstoregex
-
 package grok
 
 import (
@@ -13,66 +10,173 @@ import (
 	"sync"
 )
 
-//Option are used as params with Parse() and ParseToMultiMap()
-type Option uint
+// Options structure is used to supply NewWithOptions() with several options
+// that control the behaviour of the Grok object.
+type Options struct {
+	NamedCapturesOnly   bool
+	SkipDefaultPatterns bool
+	Patterns            map[string]string
+}
 
-const (
-	DEFAULTCAPTURE    Option = iota // Parse() And ParseToMulti() will return every group
-	NAMEDCAPTURE                    // Parse() And ParseToMulti() will return only named captures
-	NODEFAULTPATTERNS               // Do not use default patterns compiled in the lib
-)
-
-// Grok Type
+// Grok object us used to load patterns and deconstruct strings using those
+// patterns.
 type Grok struct {
-	compiledPattern    map[string]*regexp.Regexp
-	patterns           map[string]string
-	serviceMu          sync.Mutex
-	defaultCaptureMode Option
+	options         *Options
+	compiledPattern map[string]*regexp.Regexp
+	patterns        map[string]string
+	serviceMu       sync.Mutex
 }
 
-// New returns a Grok struct
-//  Options availables (any order) :
-//  * grok.NODEFAULTPATTERNS => Do not use compiled-in patterns
-//  * grok.DEFAULTCAPTURE    => Parse and ParseToMulti will return all groups
-//  * grok.NAMEDCAPTURE      => Parse and ParseToMulti will return only named captures
-//
-//  Exemple
-//  g := grok.New()
-//  g := grok.New(grok.NAMEDCAPTURE)
-//  g := grok.New(grok.NAMEDCAPTURE, grok.NODEFAULTPATTERNS)
-//  g := grok.New(grok.NODEFAULTPATTERNS, grok.DEFAULTCAPTURE)
-func New(opt ...Option) *Grok {
-	o := new(Grok)
-	o.defaultCaptureMode = DEFAULTCAPTURE
-	o.patterns = map[string]string{}
-	o.compiledPattern = map[string]*regexp.Regexp{}
+// New returns a Grok object.
+func New() *Grok {
+	return NewWithOptions(&Options{})
+}
 
-	var skipDefaultPatterns bool
-	for _, v := range opt {
-		if v == NODEFAULTPATTERNS {
-			skipDefaultPatterns = true
+// NewWithOptions returns a Grok object that is configured to behave according
+// to the supplied Options.
+func NewWithOptions(options *Options) *Grok {
+	g := &Grok{options: options, compiledPattern: map[string]*regexp.Regexp{}}
+	g.patterns = options.Patterns
+	if g.patterns == nil {
+		g.patterns = make(map[string]string)
+	}
+
+	if !options.SkipDefaultPatterns {
+		g.AddPatternsFromMap(patterns)
+	}
+
+	return g
+}
+
+// Patterns return a map of the loaded patterns.
+func (g *Grok) Patterns() map[string]string {
+	return g.patterns
+}
+
+// AddPattern adds a new pattern to the list of loaded patterns.
+func (g *Grok) AddPattern(name, pattern string) error {
+	dnPattern, err := g.denormalizePattern(pattern, g.patterns)
+	if err != nil {
+		return err
+	}
+
+	g.patterns[name] = dnPattern
+	return nil
+}
+
+// AddPatternsFromMap adds new patterns from the specified map to the list of
+// loaded patterns.
+func (g *Grok) AddPatternsFromMap(m map[string]string) error {
+	re, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
+
+	patternDeps := graph{}
+	for k, v := range m {
+		keys := []string{}
+		for _, key := range re.FindAllStringSubmatch(v, -1) {
+			keys = append(keys, key[1])
 		}
-		if v == NAMEDCAPTURE {
-			o.defaultCaptureMode = NAMEDCAPTURE
+		patternDeps[k] = keys
+	}
+
+	order, _ := sortGraph(patternDeps)
+
+	for _, key := range reverseList(order) {
+		g.AddPattern(key, m[key])
+	}
+
+	return nil
+}
+
+// AddPatternsFromPath adds new patterns from the files in the specified
+// directory to the list of loaded patterns.
+func (g *Grok) AddPatternsFromPath(path string) error {
+	if fi, err := os.Stat(path); err == nil {
+		if fi.IsDir() {
+			path = path + "/*"
+		}
+	} else {
+		return fmt.Errorf("invalid path : %s", path)
+	}
+
+	// only one error can be raised, when pattern is malformed
+	// pattern is hard-coded "/*" so we ignore err
+	files, _ := filepath.Glob(path)
+
+	var filePatterns = map[string]string{}
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			return err
+		}
+
+		scanner := bufio.NewScanner(bufio.NewReader(file))
+
+		for scanner.Scan() {
+			l := scanner.Text()
+			if len(l) > 0 && l[0] != '#' {
+				names := strings.SplitN(l, " ", 2)
+				filePatterns[names[0]] = names[1]
+			}
+		}
+
+		file.Close()
+	}
+
+	return g.AddPatternsFromMap(filePatterns)
+}
+
+// Match returns true if the specified text matches the pattern.
+func (g *Grok) Match(pattern, text string) (bool, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return false, err
+	}
+
+	if ok := cr.MatchString(text); !ok {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// Parse the specified text and return a map with the results.
+func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	captures := make(map[string]string)
+	if match := cr.FindStringSubmatch(text); len(match) > 0 {
+		for i, name := range cr.SubexpNames() {
+			if name != "" {
+				captures[name] = match[i]
+			}
 		}
 	}
 
-	if skipDefaultPatterns == false {
-		if o.defaultCaptureMode == NAMEDCAPTURE {
-			o.patterns = namedCapturePatterns
-		}
-		if o.defaultCaptureMode == DEFAULTCAPTURE {
-			o.patterns = defaultCapturePatterns
+	return captures, nil
+}
+
+// ParseToMultiMap parses the specified text and returns a map with the
+// results. Values are stored in an string slice, so values from captures with
+// the same name don't get overridden.
+func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	captures := make(map[string][]string)
+	if match := cr.FindStringSubmatch(text); len(match) > 0 {
+		for i, name := range cr.SubexpNames() {
+			if name != "" {
+				captures[name] = append(captures[name], match[i])
+			}
 		}
 	}
 
-	return o
-}
-
-// AddPattern add a pattern to grok
-func (g *Grok) AddPattern(name string, pattern string) {
-	regexPattern := denormalizePattern(pattern, g.patterns, g.defaultCaptureMode)
-	g.patterns[name] = regexPattern
+	return captures, nil
 }
 
 func (g *Grok) cache(pattern string, cr *regexp.Regexp) {
@@ -97,170 +201,45 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 		return g.compiledPattern[pattern], nil
 	}
 
-	//search for %{...:...}
+	newPattern, err := g.denormalizePattern(pattern, g.patterns)
+	if err != nil {
+		return nil, err
+	}
+
+	compiledRegex, err := regexp.Compile(newPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	g.cache(pattern, compiledRegex)
+	return compiledRegex, nil
+}
+
+func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]string) (string, error) {
 	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
-	newPattern := pattern
+
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		customname := names[0]
-		if len(names) != 1 {
-			customname = names[1]
+		syntax, semantic := names[0], names[0]
+		if len(names) > 1 {
+			semantic = names[1]
 		}
-		//search for replacements
-		if ok := g.patterns[names[0]]; ok == "" {
-			return nil, fmt.Errorf("ERROR no pattern found for %%{%s}", names[0])
+
+		storedPattern, ok := storedPatterns[syntax]
+		if !ok {
+			return "", fmt.Errorf("no pattern found for %%{%s}", syntax)
 		}
-		replace := fmt.Sprintf("(?P<%s>%s)", customname, g.patterns[names[0]])
 
-		//build the new regexp
-		newPattern = strings.Replace(newPattern, values[0], replace, -1)
-	}
-	patternCompiled, err := regexp.Compile(newPattern)
-
-	if err != nil {
-		return nil, err
-	}
-	g.cache(pattern, patternCompiled)
-	return patternCompiled, nil
-
-}
-
-// Match returns true when text match the compileed pattern
-func (g *Grok) Match(pattern, text string) (bool, error) {
-	cr, err := g.compile(pattern)
-
-	if err != nil {
-		return false, err
-	}
-
-	if m := cr.MatchString(text); !m {
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// Parse returns a string map with captured string based on provided pattern over the text
-func (g *Grok) Parse(pattern string, text string) (map[string]string, error) {
-	cr, err := g.compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	match := cr.FindStringSubmatch(text)
-	captures := make(map[string]string)
-	if len(match) > 0 {
-		for i, name := range cr.SubexpNames() {
-			captures[name] = match[i]
-		}
-	}
-
-	return captures, nil
-}
-
-// ParseToMultiMap works just like Parse, except that it allows to map multiple values to the same capture name.
-func (g *Grok) ParseToMultiMap(pattern string, text string) (map[string][]string, error) {
-	multiCaptures := make(map[string][]string)
-	cr, err := g.compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	match := cr.FindStringSubmatch(text)
-	if len(match) > 0 {
-		for i, name := range cr.SubexpNames() {
-			multiCaptures[name] = append(multiCaptures[name], match[i])
-		}
-	}
-
-	return multiCaptures, nil
-}
-
-// AddPatternsFromPath loads grok patterns from a file or files from a directory
-func (g *Grok) AddPatternsFromPath(path string) error {
-
-	if fi, err := os.Stat(path); err == nil {
-		if fi.IsDir() {
-			path = path + "/*"
-		}
-	} else {
-		return fmt.Errorf("invalid path : %s", path)
-	}
-
-	var patternDependancies = graph{}
-	var fileContent = map[string]string{}
-
-	//List all files if path folder
-	files, _ := filepath.Glob(path)
-	for _, file := range files {
-		inFile, _ := os.Open(file)
-
-		reader := bufio.NewReader(inFile)
-		scanner := bufio.NewScanner(reader)
-		r, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
-
-		for scanner.Scan() {
-			l := scanner.Text()
-			if len(l) > 0 { // line has text
-				if l[0] != '#' { // line does not start with #
-					names := strings.SplitN(l, " ", 2)
-					fileContent[names[0]] = names[1]
-
-					keys := []string{}
-					for _, key := range r.FindAllStringSubmatch(names[1], -1) {
-						keys = append(keys, key[1])
-					}
-					patternDependancies[names[0]] = keys
-				}
-			}
-		}
-		inFile.Close()
-	}
-
-	order, _ := sortGraph(patternDependancies)
-	order = reverseList(order)
-
-	for _, key := range order {
-		g.AddPattern(key, fileContent[key])
-	}
-
-	return nil
-}
-
-func denormalizePattern(pattern string, finalPatterns map[string]string, kindOfCapture Option) string {
-	r, _ := regexp.Compile(`%{((\w+):?(\w+)?)}`)
-	newPattern := pattern
-	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		var replace string
-		if kindOfCapture == DEFAULTCAPTURE {
-			customname := values[2]
-			if values[3] != "" {
-				customname = values[3]
-			}
-			//search for replacements
-			replace = fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[values[2]])
+		if !g.options.NamedCapturesOnly || (g.options.NamedCapturesOnly && len(names) > 1) {
+			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
+		} else {
+			replace = "(" + storedPattern + ")"
 		}
-		if kindOfCapture == NAMEDCAPTURE {
-			customname := values[2]
-			if values[3] != "" {
-				customname = values[3]
-				//search for replacement
-				replace = fmt.Sprintf("(?P<%s>%s)", customname, finalPatterns[values[2]])
-			} else {
-				//search the replacement
-				replace = finalPatterns[values[2]]
-			}
-		}
-		//build the new regex
-		newPattern = strings.Replace(newPattern, values[0], replace, -1)
+
+		pattern = strings.Replace(pattern, values[0], replace, -1)
 	}
 
-	return newPattern
-}
-
-//Patterns returns loaded registered patterns
-func (g *Grok) Patterns() map[string]string {
-
-	return g.patterns
+	return pattern, nil
 }

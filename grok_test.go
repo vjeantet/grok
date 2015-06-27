@@ -8,14 +8,14 @@ func TestNew(t *testing.T) {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 
-	g = NewWithOptions(&Options{NamedCapturesOnly: true})
+	g = NewWithConfig(&Config{NamedCapturesOnly: true})
 	if len(g.Patterns()) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 }
 
 func TestParseWithDefaultCaptureMode(t *testing.T) {
-	g := NewWithOptions(&Options{NamedCapturesOnly: true})
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
 		t.Fatalf("error can not capture : %s", err.Error())
 	} else {
@@ -41,7 +41,7 @@ func TestParseWithDefaultCaptureMode(t *testing.T) {
 }
 
 func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
-	g := NewWithOptions(&Options{NamedCapturesOnly: true})
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["TIME"]) != 0 {
 		t.Fatalf("DAY should be an array of 0 elements, but is '%s'", res["TIME"])
@@ -58,7 +58,7 @@ func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
 }
 
 func TestNewWithNoDefaultPatterns(t *testing.T) {
-	g := NewWithOptions(&Options{SkipDefaultPatterns: true})
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
 	if len(g.Patterns()) != 0 {
 		t.Fatal("Using SkipDefaultPatterns the Grok object should not have any patterns pre loaded")
 	}
@@ -111,7 +111,7 @@ func TestAddPattern(t *testing.T) {
 		t.Fatalf("%d Default patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
 
-	g = NewWithOptions(&Options{NamedCapturesOnly: true})
+	g = NewWithConfig(&Config{NamedCapturesOnly: true})
 	cPatterns = len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
@@ -247,7 +247,7 @@ func TestParseToMultiMap(t *testing.T) {
 }
 
 func TestParseToMultiMapOnlyNamedCaptures(t *testing.T) {
-	g := NewWithOptions(&Options{NamedCapturesOnly: true})
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	g.AddPatternsFromPath("./patterns")
 	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["timestamp"]) != 2 {
@@ -291,7 +291,7 @@ func TestCaptureAll(t *testing.T) {
 }
 
 func TestNamedCapture(t *testing.T) {
-	g := NewWithOptions(&Options{NamedCapturesOnly: true})
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
@@ -332,7 +332,7 @@ func TestCapturesAndNamedCapture(t *testing.T) {
 	}
 
 	checkNamed := func(key, value, pattern, text string) {
-		g := NewWithOptions(&Options{NamedCapturesOnly: true})
+		g := NewWithConfig(&Config{NamedCapturesOnly: true})
 		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
@@ -422,7 +422,7 @@ func TestConcurentParse(t *testing.T) {
 }
 
 func TestPatterns(t *testing.T) {
-	g := NewWithOptions(&Options{SkipDefaultPatterns: true})
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
 	if len(g.Patterns()) != 0 {
 		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
 	}

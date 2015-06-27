@@ -10,9 +10,8 @@ import (
 	"sync"
 )
 
-// Options structure is used to supply NewWithOptions() with several options
-// that control the behaviour of the Grok object.
-type Options struct {
+// A Config structure is used to configure a Grok parser.
+type Config struct {
 	NamedCapturesOnly   bool
 	SkipDefaultPatterns bool
 	Patterns            map[string]string
@@ -21,7 +20,7 @@ type Options struct {
 // Grok object us used to load patterns and deconstruct strings using those
 // patterns.
 type Grok struct {
-	options         *Options
+	config          *Config
 	compiledPattern map[string]*regexp.Regexp
 	patterns        map[string]string
 	serviceMu       sync.Mutex
@@ -29,19 +28,19 @@ type Grok struct {
 
 // New returns a Grok object.
 func New() *Grok {
-	return NewWithOptions(&Options{})
+	return NewWithConfig(&Config{})
 }
 
-// NewWithOptions returns a Grok object that is configured to behave according
-// to the supplied Options.
-func NewWithOptions(options *Options) *Grok {
-	g := &Grok{options: options, compiledPattern: map[string]*regexp.Regexp{}}
-	g.patterns = options.Patterns
+// NewWithConfig returns a Grok object that is configured to behave according
+// to the supplied Config structure.
+func NewWithConfig(config *Config) *Grok {
+	g := &Grok{config: config, compiledPattern: map[string]*regexp.Regexp{}}
+	g.patterns = config.Patterns
 	if g.patterns == nil {
 		g.patterns = make(map[string]string)
 	}
 
-	if !options.SkipDefaultPatterns {
+	if !config.SkipDefaultPatterns {
 		g.AddPatternsFromMap(patterns)
 	}
 
@@ -232,7 +231,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]stri
 		}
 
 		var replace string
-		if !g.options.NamedCapturesOnly || (g.options.NamedCapturesOnly && len(names) > 1) {
+		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
 			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
 		} else {
 			replace = "(" + storedPattern + ")"

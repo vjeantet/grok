@@ -15,7 +15,7 @@ func main() {
 	}
 
 	fmt.Println("\n# Named Capture :")
-	g = grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
+	g = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 	values, _ = g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	for k, v := range values {
 		fmt.Printf("%+15s: %s\n", k, v)
@@ -23,7 +23,7 @@ func main() {
 
 	fmt.Println("\n# Add custom patterns :")
 	// We add 3 patterns to our Grok instance, to structure an IRC message
-	g = grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
+	g = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 	g.AddPattern("IRCUSER", `\A@(\w+)`)
 	g.AddPattern("IRCBODY", `.*`)
 	g.AddPattern("IRCMSG", `%{IRCUSER:user} .* : %{IRCBODY:message}`)

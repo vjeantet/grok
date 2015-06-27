@@ -7,21 +7,21 @@ import (
 )
 
 func main() {
-	fmt.Println("# Default Capture :\n")
+	fmt.Println("# Default Capture :")
 	g := grok.New()
 	values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	for k, v := range values {
 		fmt.Printf("%+15s: %s\n", k, v)
 	}
 
-	fmt.Println("\n\n# Named Capture :\n")
+	fmt.Println("\n# Named Capture :")
 	g = grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
 	values, _ = g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	for k, v := range values {
 		fmt.Printf("%+15s: %s\n", k, v)
 	}
 
-	fmt.Println("\n\n# Add custom patterns :\n")
+	fmt.Println("\n# Add custom patterns :")
 	// We add 3 patterns to our Grok instance, to structure an IRC message
 	g = grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
 	g.AddPattern("IRCUSER", `\A@(\w+)`)

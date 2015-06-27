@@ -31,7 +31,7 @@ You also can load your custom patterns from a file (or folder) using grok.AddPat
 g := grok.New()
 values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
-g = grok.NewWithOptions(&Options{NamedCapturesOnly: true})
+g = grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
 values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 ```
 values is a map with all captured groups
@@ -97,7 +97,7 @@ import (
 )
 
 func main() {
-  g := grok.NewWithOptions(&Options{NamedCapturesOnly: true})
+  g := grok.NewWithOptions(&grok.Options{NamedCapturesOnly: true})
   values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
   for k, v := range values {

@@ -1,39 +1,44 @@
 [![GoDoc](https://godoc.org/github.com/gemsi/grok?status.svg)](https://godoc.org/github.com/gemsi/grok)
 [![Build Status](https://travis-ci.org/gemsi/grok.svg)](https://travis-ci.org/gemsi/grok)
 [![Coverage Status](https://coveralls.io/repos/gemsi/grok/badge.png?branch=master)](https://coveralls.io/r/gemsi/grok?branch=master)
+[![Go Report Card](http://goreportcard.com/badge/gemsi/grok)](http:/goreportcard.com/report/gemsi/grok)
 [![Documentation Status](https://readthedocs.org/projects/grok-lib-for-golang/badge/?version=latest)](https://readthedocs.org/projects/grok-lib-for-golang/?badge=latest)
-         
+
 
 # grok
-simple library to use/parse grok patterns with go (no bindings)
+A simple library to parse grok patterns with Go.
 
 # Installation
-Make sure you have the a working Go environment.
+Make sure you have a working Go environment.
 
-```go get github.com/gemsi/grok```
+```sh
+go get github.com/gemsi/grok
+```
 
 # Use in your project
-```import "github.com/gemsi/grok"```
+```go
+import "github.com/gemsi/grok"
+```
 
 # Usage
 ## Available patterns and custom ones
-By default this grok lib contains all patterns you can see in src/patterns folder.
-You don't need to add theses patterns.
+By default this grok package contains all patterns you can see in patterns folder.
+You don't need to add these patterns.
 When you want to add a custom pattern, use the grok.AddPattern(nameOfPattern, pattern), see the example folder for an example of usage.
-You also can load your custom patterns from a file (or folder) using grok.AddPatternsFromPath(path). 
+You also can load your custom patterns from a file (or folder) using grok.AddPatternsFromPath(path).
 
-## Parse all or only named captures 
+## Parse all or only named captures
 ```go
 g := grok.New()
 values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
-g = grok.New(grok.NAMEDCAPTURE)
+g = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 ```
 values is a map with all captured groups
 values2 contains only named captures
 
-# Examples 
+# Examples
 ```go
 package main
 
@@ -57,13 +62,12 @@ output:
 ```
        response: 404
           bytes: 207
-               : 207
        HOSTNAME: 127.0.0.1
        USERNAME: -
        MONTHDAY: 23
         request: /index.php
       BASE10NUM: 207
-           IPV6: 
+           IPV6:
            auth: -
       timestamp: 23/Apr/2014:22:58:32 +0200
            verb: GET
@@ -72,15 +76,15 @@ output:
            HOUR: 22
 COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
        clientip: 127.0.0.1
-             IP: 
+             IP:
           ident: -
           MONTH: Apr
            YEAR: 2014
          SECOND: 32
             INT: +0200
-           IPV4: 
+           IPV4:
          MINUTE: 58
-     rawrequest: 
+     rawrequest:
 ```
 
 # Example 2
@@ -94,7 +98,7 @@ import (
 )
 
 func main() {
-  g := grok.New(grok.NAMEDCAPTURE)
+  g := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
   values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
   for k, v := range values {
@@ -107,15 +111,13 @@ output:
 ```
       timestamp: 23/Apr/2014:22:58:32 +0200
            verb: GET
-     rawrequest: 
+     rawrequest:
           bytes: 207
            auth: -
         request: /index.php
     httpversion: 1.1
        response: 404
-               : 207
 COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
        clientip: 127.0.0.1
           ident: -
-
 ```

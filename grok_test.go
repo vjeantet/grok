@@ -1,29 +1,21 @@
 package grok
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 func TestNew(t *testing.T) {
 	g := New()
-	if g == nil {
-		t.Fatal("error")
-	}
-	p := g.Patterns()
-	if len(p) == 0 {
-		t.Fatal("the Grok object should  have some patterns pre loaded")
+	if len(g.Patterns()) == 0 {
+		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 
-	g = New(NAMEDCAPTURE)
-	p = g.Patterns()
-	if len(p) == 0 {
-		t.Fatal("the Grok object should  have some patterns pre loaded")
+	g = NewWithConfig(&Config{NamedCapturesOnly: true})
+	if len(g.Patterns()) == 0 {
+		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 }
 
 func TestParseWithDefaultCaptureMode(t *testing.T) {
-	g := New(NAMEDCAPTURE)
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
 		t.Fatalf("error can not capture : %s", err.Error())
 	} else {
@@ -46,23 +38,10 @@ func TestParseWithDefaultCaptureMode(t *testing.T) {
 			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
 		}
 	}
-
-	g = New(DEFAULTCAPTURE)
-	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
-		t.Fatalf("error can not capture : %s", err.Error())
-	} else {
-		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
-			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
-		}
-		if captures["TIME"] != "22:58:32" {
-			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
-		}
-	}
 }
 
 func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
-	g := New(NAMEDCAPTURE)
-
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["TIME"]) != 0 {
 		t.Fatalf("DAY should be an array of 0 elements, but is '%s'", res["TIME"])
@@ -76,22 +55,12 @@ func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
 	if len(res["timestamp"]) != 2 {
 		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
 	}
-
-	g = New(DEFAULTCAPTURE)
-	res, _ = g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:23:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
-	if len(res["TIME"]) != 2 {
-		t.Fatalf("TIME should be an array of 2 elements, but is '%s'", res["TIME"])
-	}
-	if len(res["timestamp"]) != 2 {
-		t.Fatalf("timestamp should be an array of 2 elements, but is '%s'", res["timestamp"])
-	}
 }
 
 func TestNewWithNoDefaultPatterns(t *testing.T) {
-	g := New(NODEFAULTPATTERNS)
-	p := g.Patterns()
-	if len(p) > 0 {
-		t.Fatal("Using NODEFAULTPATTERNS the Grok object should not have any patterns pre loaded")
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
+	if len(g.Patterns()) != 0 {
+		t.Fatal("Using SkipDefaultPatterns the Grok object should not have any patterns pre loaded")
 	}
 }
 
@@ -100,6 +69,29 @@ func TestAddPatternsFromPath(t *testing.T) {
 	err := g.AddPatternsFromPath("./Lorem ipsum Minim qui in.")
 	if err == nil {
 		t.Fatalf("AddPatternsFromPath should returns an error when path is invalid")
+	}
+}
+
+func TestAddPatternsFromPathFileOpenErr(t *testing.T) {
+	t.Skipped()
+}
+
+func TestAddPatternsFromPathFile(t *testing.T) {
+	g := New()
+	err := g.AddPatternsFromPath("./patterns/base")
+	if err != nil {
+		t.Fatalf("err %#v", err)
+	}
+}
+
+func TestAddPatternErr(t *testing.T) {
+	name := "Error"
+	pattern := "%{ERR}"
+
+	g := New()
+	err := g.AddPattern(name, pattern)
+	if err == nil {
+		t.Fatalf("AddPattern should returns an error when path is invalid")
 	}
 }
 
@@ -115,7 +107,7 @@ func TestAddPattern(t *testing.T) {
 		t.Fatalf("%d Default patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
 
-	g = New(NAMEDCAPTURE)
+	g = NewWithConfig(&Config{NamedCapturesOnly: true})
 	cPatterns = len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
@@ -251,7 +243,7 @@ func TestParseToMultiMap(t *testing.T) {
 }
 
 func TestParseToMultiMapOnlyNamedCaptures(t *testing.T) {
-	g := New(NAMEDCAPTURE)
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	g.AddPatternsFromPath("./patterns")
 	res, _ := g.ParseToMultiMap("%{COMMONAPACHELOG} %{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207 127.0.0.1 - - [24/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	if len(res["timestamp"]) != 2 {
@@ -295,11 +287,10 @@ func TestCaptureAll(t *testing.T) {
 }
 
 func TestNamedCapture(t *testing.T) {
-	g := New(NAMEDCAPTURE)
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
 	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
-
 		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
@@ -324,19 +315,9 @@ func TestNamedCapture(t *testing.T) {
 }
 
 func TestCapturesAndNamedCapture(t *testing.T) {
-	g := New()
-	g.AddPatternsFromPath("./patterns")
 
 	check := func(key, value, pattern, text string) {
-
-		if captures, err := g.Parse(pattern, text); err != nil {
-			t.Fatalf("error can not capture : %s", err.Error())
-		} else {
-			if captures[key] != value {
-				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
-			}
-		}
-		g = New(NAMEDCAPTURE)
+		g := New()
 		if captures, err := g.Parse(pattern, text); err != nil {
 			t.Fatalf("error can not capture : %s", err.Error())
 		} else {
@@ -346,11 +327,23 @@ func TestCapturesAndNamedCapture(t *testing.T) {
 		}
 	}
 
+	checkNamed := func(key, value, pattern, text string) {
+		g := NewWithConfig(&Config{NamedCapturesOnly: true})
+		if captures, err := g.Parse(pattern, text); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if captures[key] != value {
+				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
+			}
+		}
+
+	}
+
 	check("DAY", "Tue",
 		"%{DAY}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
-	check("jour", "Tue",
+	checkNamed("jour", "Tue",
 		"%{DAY:jour}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
@@ -424,22 +417,8 @@ func TestConcurentParse(t *testing.T) {
 	go check("QUOTEDSTRING", `'fk"lkj"m'`, "%{QUOTEDSTRING}", `qsdklfjqsd 'fk"lkj"m'kj`)
 }
 
-func TestOptionStringOutOfRange(t *testing.T) {
-	var test Option = 99999
-	expectedValue := fmt.Sprintf("Option(%d)", test)
-	if test.String() != expectedValue {
-		t.Fatalf("test should return a string '%s', have '%s'", expectedValue, test.String())
-	}
-}
-
-func TestOptionString(t *testing.T) {
-	if DEFAULTCAPTURE.String() != "DEFAULTCAPTURE" {
-		t.Fatalf("DEFAULTCAPTURE should return a string '%s'", DEFAULTCAPTURE.String())
-	}
-}
-
 func TestPatterns(t *testing.T) {
-	g := New(NODEFAULTPATTERNS)
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
 	if len(g.Patterns()) != 0 {
 		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
 	}

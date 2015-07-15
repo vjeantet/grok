@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -157,6 +158,48 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return captures, nil
 }
 
+// Parse returns a inteface{} map with captured fields based on provided pattern over the text
+func (g *Grok) ParseType(pattern string, text string) (map[string]interface{}, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	match := cr.FindStringSubmatch(text)
+	captures := make(map[string]interface{})
+	if len(match) > 0 {
+		for i, nameAndType := range cr.SubexpNames() {
+			if len(nameAndType) != 0 {
+				//fmt.Println("nameAndType: ", nameAndType)
+				separatorIndex := strings.LastIndex(nameAndType, "_")
+				segmentName := nameAndType[:separatorIndex]
+				segmentType := nameAndType[separatorIndex+1:]
+				//fmt.Printf("SegmentName = %s, SegmentType = %s\n", segmentName, segmentType)
+				var value, err interface{}
+				switch segmentType {
+				case "int":
+					//value, err = strconv.Atoi(match[i])
+					value, err = strconv.ParseFloat(match[i], 64)
+					value = int(value.(float64))
+				case "float":
+					value, err = strconv.ParseFloat(match[i], 64)
+				case "string":
+					value = match[i]
+				default:
+					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
+				}
+
+				if err == nil {
+					captures[segmentName] = value
+				}
+			}
+
+		}
+	}
+
+	return captures, nil
+}
+
 // ParseToMultiMap parses the specified text and returns a map with the
 // results. Values are stored in an string slice, so values from captures with
 // the same name don't get overridden.
@@ -215,14 +258,18 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 }
 
 func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]string) (string, error) {
-	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+	r, _ := regexp.Compile(`%{(\w+:?\w+:?\w+)}`)
 
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		syntax, semantic := names[0], names[0]
+		syntax, semantic, segmentType := names[0], names[0], "string"
 		if len(names) > 1 {
 			semantic = names[1]
+		}
+
+		if len(names) == 3 {
+			segmentType = names[2]
 		}
 
 		storedPattern, ok := storedPatterns[syntax]
@@ -232,7 +279,9 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]stri
 
 		var replace string
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
-			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
+			replace = fmt.Sprintf("(?P<%s_%s>%s)", semantic, segmentType, storedPattern)
+			//replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
+			//--->fmt.Printf("Replace=%s\n", replace)
 		} else {
 			replace = "(" + storedPattern + ")"
 		}

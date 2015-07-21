@@ -25,7 +25,7 @@ type Grok struct {
 	compiledPattern map[string]*regexp.Regexp
 	patterns        map[string]string
 	serviceMu       sync.Mutex
-  typeInfo        map[string]string
+	typeInfo        map[string]string
 }
 
 // New returns a Grok object.

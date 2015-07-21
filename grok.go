@@ -25,6 +25,7 @@ type Grok struct {
 	compiledPattern map[string]*regexp.Regexp
 	patterns        map[string]string
 	serviceMu       sync.Mutex
+  typeInfo        map[string]string
 }
 
 // New returns a Grok object.
@@ -37,6 +38,8 @@ func New() *Grok {
 func NewWithConfig(config *Config) *Grok {
 	g := &Grok{config: config, compiledPattern: map[string]*regexp.Regexp{}}
 	g.patterns = config.Patterns
+	g.typeInfo = make(map[string]string)
+
 	if g.patterns == nil {
 		g.patterns = make(map[string]string)
 	}
@@ -159,7 +162,7 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 }
 
 // Parse returns a inteface{} map with captured fields based on provided pattern over the text
-func (g *Grok) ParseType(pattern string, text string) (map[string]interface{}, error) {
+func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
 	cr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
@@ -168,23 +171,19 @@ func (g *Grok) ParseType(pattern string, text string) (map[string]interface{}, e
 	match := cr.FindStringSubmatch(text)
 	captures := make(map[string]interface{})
 	if len(match) > 0 {
-		for i, nameAndType := range cr.SubexpNames() {
-			if len(nameAndType) != 0 {
-				//fmt.Println("nameAndType: ", nameAndType)
-				separatorIndex := strings.LastIndex(nameAndType, "_")
-				segmentName := nameAndType[:separatorIndex]
-				segmentType := nameAndType[separatorIndex+1:]
-				//fmt.Printf("SegmentName = %s, SegmentType = %s\n", segmentName, segmentType)
+		for i, segmentName := range cr.SubexpNames() {
+			if len(segmentName) != 0 {
+				segmentType := g.typeInfo[segmentName]
+
 				var value, err interface{}
 				switch segmentType {
 				case "int":
-					//value, err = strconv.Atoi(match[i])
 					value, err = strconv.ParseFloat(match[i], 64)
 					value = int(value.(float64))
 				case "float":
 					value, err = strconv.ParseFloat(match[i], 64)
 				case "string":
-					value = match[i]
+					value, err = match[i], nil
 				default:
 					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
 				}
@@ -272,6 +271,8 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]stri
 			segmentType = names[2]
 		}
 
+		g.typeInfo[semantic] = segmentType
+
 		storedPattern, ok := storedPatterns[syntax]
 		if !ok {
 			return "", fmt.Errorf("no pattern found for %%{%s}", syntax)
@@ -279,9 +280,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]stri
 
 		var replace string
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
-			replace = fmt.Sprintf("(?P<%s_%s>%s)", semantic, segmentType, storedPattern)
-			//replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
-			//--->fmt.Printf("Replace=%s\n", replace)
+			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
 		} else {
 			replace = "(" + storedPattern + ")"
 		}

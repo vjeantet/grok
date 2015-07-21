@@ -432,3 +432,48 @@ func TestPatterns(t *testing.T) {
 		t.Fatalf("Patterns should return 2, have '%d'", len(g.Patterns()))
 	}
 }
+
+func TestParseTypedWithDefaultCaptureMode(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.ParseTyped("%{IPV4:ip:string} %{NUMBER:status:int} %{NUMBER:duration:float}", `127.0.0.1 200 0.8`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["ip"] != "127.0.0.1" {
+			t.Fatalf("%s should be '%s' have '%s'", "ip", "127.0.0.1", captures["ip"])
+		} else {
+			if captures["status"] != 200 {
+				t.Fatalf("%s should be '%d' have '%d'", "status", 200, captures["status"])
+			} else {
+				if captures["duration"] != 0.8 {
+					t.Fatalf("%s should be '%d' have '%d'", "duration", 0.8, captures["duration"])
+				}
+			}
+		}
+	}
+}
+
+func TestParseTypedWithNoTypeInfo(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "", captures["TIME"])
+		}
+	}
+
+	g = New()
+	if captures, err := g.ParseTyped("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
+			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
+		}
+		if captures["TIME"] != "22:58:32" {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", "22:58:32", captures["TIME"])
+		}
+	}
+}

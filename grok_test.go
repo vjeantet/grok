@@ -477,3 +477,30 @@ func TestParseTypedWithNoTypeInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestParseTypedWithIntegerTypeCoercion(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.ParseTyped("%{WORD:coerced:int}", `5.75`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["coerced"] != 5 {
+			t.Fatalf("%s should be '%s' have '%s'", "coerced", "5", captures["coerced"])
+		}
+	}
+}
+
+func TestParseTypedWithUnknownType(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if _, err := g.ParseTyped("%{WORD:word:unknown}", `hello`); err == nil {
+		t.Fatalf("parsing an unknown type must result in a conversion error")
+	}
+}
+
+func TestParseTypedErrorCaptureUnknowPattern(t *testing.T) {
+	g := New()
+	pattern := "%{UNKNOWPATTERN}"
+	_, err := g.ParseTyped(pattern, "")
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
+}

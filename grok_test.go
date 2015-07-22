@@ -454,14 +454,14 @@ func TestParseTypedWithDefaultCaptureMode(t *testing.T) {
 
 func TestParseTypedWithNoTypeInfo(t *testing.T) {
 	g := NewWithConfig(&Config{NamedCapturesOnly: true})
-	if captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+	if captures, err := g.ParseTyped("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
 		t.Fatalf("error can not capture : %s", err.Error())
 	} else {
 		if captures["timestamp"] != "23/Apr/2014:22:58:32 +0200" {
 			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
 		}
-		if captures["TIME"] != "" {
-			t.Fatalf("%s should be '%s' have '%s'", "TIME", "", captures["TIME"])
+		if captures["TIME"] != nil {
+			t.Fatalf("%s should be '%s' have '%s'", "TIME", nil, captures["TIME"])
 		}
 	}
 

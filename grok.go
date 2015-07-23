@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -24,6 +25,7 @@ type Grok struct {
 	compiledPattern map[string]*regexp.Regexp
 	patterns        map[string]string
 	serviceMu       sync.Mutex
+	typeInfo        map[string]string
 }
 
 // New returns a Grok object.
@@ -36,6 +38,8 @@ func New() *Grok {
 func NewWithConfig(config *Config) *Grok {
 	g := &Grok{config: config, compiledPattern: map[string]*regexp.Regexp{}}
 	g.patterns = config.Patterns
+	g.typeInfo = make(map[string]string)
+
 	if g.patterns == nil {
 		g.patterns = make(map[string]string)
 	}
@@ -157,6 +161,44 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return captures, nil
 }
 
+// Parse returns a inteface{} map with captured fields based on provided pattern over the text
+func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
+	cr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	match := cr.FindStringSubmatch(text)
+	captures := make(map[string]interface{})
+	if len(match) > 0 {
+		for i, segmentName := range cr.SubexpNames() {
+			if len(segmentName) != 0 {
+				segmentType := g.typeInfo[segmentName]
+
+				var value, err interface{}
+				switch segmentType {
+				case "int":
+					value, err = strconv.ParseFloat(match[i], 64)
+					value = int(value.(float64))
+				case "float":
+					value, err = strconv.ParseFloat(match[i], 64)
+				case "string":
+					value, err = match[i], nil
+				default:
+					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
+				}
+
+				if err == nil {
+					captures[segmentName] = value
+				}
+			}
+
+		}
+	}
+
+	return captures, nil
+}
+
 // ParseToMultiMap parses the specified text and returns a map with the
 // results. Values are stored in an string slice, so values from captures with
 // the same name don't get overridden.
@@ -215,15 +257,21 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 }
 
 func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]string) (string, error) {
-	r, _ := regexp.Compile(`%{(\w+:?\w+)}`)
+	r, _ := regexp.Compile(`%{(\w+:?\w+:?\w+)}`)
 
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		syntax, semantic := names[0], names[0]
+		syntax, semantic, segmentType := names[0], names[0], "string"
 		if len(names) > 1 {
 			semantic = names[1]
 		}
+
+		if len(names) == 3 {
+			segmentType = names[2]
+		}
+
+		g.typeInfo[semantic] = segmentType
 
 		storedPattern, ok := storedPatterns[syntax]
 		if !ok {

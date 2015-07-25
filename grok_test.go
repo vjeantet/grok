@@ -504,3 +504,36 @@ func TestParseTypedErrorCaptureUnknowPattern(t *testing.T) {
 		t.Fatal("Expected error not set")
 	}
 }
+
+func TestParseTypedWithTypedParents(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	g.AddPattern("TESTCOMMON", `%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})" %{NUMBER:response} (?:%{NUMBER:bytes:int}|-)`)
+	if captures, err := g.ParseTyped("%{TESTCOMMON}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["bytes"] != 207 {
+			t.Fatalf("%s should be '%s' have '%s'", "bytes", "207", captures["bytes"])
+		}
+	}
+}
+
+func TestParseTypedWithSemanticHomonyms(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	g.AddPattern("MYNUM", `%{NUMBER:bytes:int}`)
+	g.AddPattern("MYSTR", `%{NUMBER:bytes:string}`)
+
+	if captures, err := g.ParseTyped("%{MYNUM}", `207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["bytes"] != 207 {
+			t.Fatalf("%s should be %#v have %#v", "bytes", 207, captures["bytes"])
+		}
+	}
+	if captures, err := g.ParseTyped("%{MYSTR}", `207`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["bytes"] != "207" {
+			t.Fatalf("%s should be %#v have %#v", "bytes", "207", captures["bytes"])
+		}
+	}
+}

@@ -21,12 +21,23 @@ type Config struct {
 // Grok object us used to load patterns and deconstruct strings using those
 // patterns.
 type Grok struct {
-	config          *Config
-	compiledPattern map[string]*regexp.Regexp
-	patterns        map[string]string
-	serviceMu       sync.Mutex
-	typeInfo        map[string]string
+	config           *Config
+	compiledPatterns map[string]*gRegexp
+	patterns         map[string]*gPattern
+	serviceMu        sync.Mutex
 }
+
+type gPattern struct {
+	expression string
+	typeInfo   semanticTypes
+}
+
+type gRegexp struct {
+	regexp   *regexp.Regexp
+	typeInfo semanticTypes
+}
+
+type semanticTypes map[string]string
 
 // New returns a Grok object.
 func New() *Grok {
@@ -36,12 +47,14 @@ func New() *Grok {
 // NewWithConfig returns a Grok object that is configured to behave according
 // to the supplied Config structure.
 func NewWithConfig(config *Config) *Grok {
-	g := &Grok{config: config, compiledPattern: map[string]*regexp.Regexp{}}
-	g.patterns = config.Patterns
-	g.typeInfo = make(map[string]string)
+	g := &Grok{config: config, compiledPatterns: map[string]*gRegexp{}}
+
+	if config.Patterns != nil {
+		g.AddPatternsFromMap(config.Patterns)
+	}
 
 	if g.patterns == nil {
-		g.patterns = make(map[string]string)
+		g.patterns = make(map[string]*gPattern)
 	}
 
 	if !config.SkipDefaultPatterns {
@@ -52,18 +65,18 @@ func NewWithConfig(config *Config) *Grok {
 }
 
 // Patterns return a map of the loaded patterns.
-func (g *Grok) Patterns() map[string]string {
+func (g *Grok) Patterns() map[string]*gPattern {
 	return g.patterns
 }
 
 // AddPattern adds a new pattern to the list of loaded patterns.
 func (g *Grok) AddPattern(name, pattern string) error {
-	dnPattern, err := g.denormalizePattern(pattern, g.patterns)
+	dnPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
 	if err != nil {
 		return err
 	}
 
-	g.patterns[name] = dnPattern
+	g.patterns[name] = &gPattern{expression: dnPattern, typeInfo: ti}
 	return nil
 }
 
@@ -130,12 +143,12 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 
 // Match returns true if the specified text matches the pattern.
 func (g *Grok) Match(pattern, text string) (bool, error) {
-	cr, err := g.compile(pattern)
+	gr, err := g.compile(pattern)
 	if err != nil {
 		return false, err
 	}
 
-	if ok := cr.MatchString(text); !ok {
+	if ok := gr.regexp.MatchString(text); !ok {
 		return false, nil
 	}
 
@@ -144,14 +157,14 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 
 // Parse the specified text and return a map with the results.
 func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
-	cr, err := g.compile(pattern)
+	gr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
 	}
 
 	captures := make(map[string]string)
-	if match := cr.FindStringSubmatch(text); len(match) > 0 {
-		for i, name := range cr.SubexpNames() {
+	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
+		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
 				captures[name] = match[i]
 			}
@@ -163,31 +176,28 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 
 // Parse returns a inteface{} map with captured fields based on provided pattern over the text
 func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
-	cr, err := g.compile(pattern)
+	gr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
 	}
-
-	match := cr.FindStringSubmatch(text)
+	match := gr.regexp.FindStringSubmatch(text)
 	captures := make(map[string]interface{})
 	if len(match) > 0 {
-		for i, segmentName := range cr.SubexpNames() {
+		for i, segmentName := range gr.regexp.SubexpNames() {
 			if len(segmentName) != 0 {
-				segmentType := g.typeInfo[segmentName]
-
 				var value, err interface{}
+				segmentType := gr.typeInfo[segmentName]
 				switch segmentType {
+				case "":
+					value, err = match[i], nil
 				case "int":
 					value, err = strconv.ParseFloat(match[i], 64)
 					value = int(value.(float64))
 				case "float":
 					value, err = strconv.ParseFloat(match[i], 64)
-				case "string":
-					value, err = match[i], nil
 				default:
 					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
 				}
-
 				if err == nil {
 					captures[segmentName] = value
 				}
@@ -203,14 +213,14 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 // results. Values are stored in an string slice, so values from captures with
 // the same name don't get overridden.
 func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error) {
-	cr, err := g.compile(pattern)
+	gr, err := g.compile(pattern)
 	if err != nil {
 		return nil, err
 	}
 
 	captures := make(map[string][]string)
-	if match := cr.FindStringSubmatch(text); len(match) > 0 {
-		for i, name := range cr.SubexpNames() {
+	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
+		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
 				captures[name] = append(captures[name], match[i])
 			}
@@ -220,29 +230,29 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 	return captures, nil
 }
 
-func (g *Grok) cache(pattern string, cr *regexp.Regexp) {
+func (g *Grok) cache(pattern string, cr *gRegexp) {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
-	g.compiledPattern[pattern] = cr
+	g.compiledPatterns[pattern] = cr
 }
 
 func (g *Grok) cacheExists(pattern string) bool {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
 
-	if _, ok := g.compiledPattern[pattern]; ok {
+	if _, ok := g.compiledPatterns[pattern]; ok {
 		return true
 	}
 
 	return false
 }
 
-func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
+func (g *Grok) compile(pattern string) (*gRegexp, error) {
 	if g.cacheExists(pattern) {
-		return g.compiledPattern[pattern], nil
+		return g.compiledPatterns[pattern], nil
 	}
 
-	newPattern, err := g.denormalizePattern(pattern, g.patterns)
+	newPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
 	if err != nil {
 		return nil, err
 	}
@@ -251,42 +261,51 @@ func (g *Grok) compile(pattern string) (*regexp.Regexp, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	g.cache(pattern, compiledRegex)
-	return compiledRegex, nil
+	gr := &gRegexp{regexp: compiledRegex, typeInfo: ti}
+	g.cache(pattern, gr)
+	return gr, nil
 }
 
-func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]string) (string, error) {
+func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPattern) (string, semanticTypes, error) {
 	r, _ := regexp.Compile(`%{(\w+:?\w+:?\w+)}`)
-
+	ti := semanticTypes{}
 	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		syntax, semantic, segmentType := names[0], names[0], "string"
+		syntax, semantic := names[0], names[0]
 		if len(names) > 1 {
 			semantic = names[1]
 		}
 
+		// Add type cast information only if type set, and not string
 		if len(names) == 3 {
-			segmentType = names[2]
+			if names[2] != "string" {
+				ti[semantic] = names[2]
+			}
 		}
-
-		g.typeInfo[semantic] = segmentType
 
 		storedPattern, ok := storedPatterns[syntax]
 		if !ok {
-			return "", fmt.Errorf("no pattern found for %%{%s}", syntax)
+			return "", ti, fmt.Errorf("no pattern found for %%{%s}", syntax)
 		}
 
 		var replace string
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
-			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern)
+			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern.expression)
 		} else {
-			replace = "(" + storedPattern + ")"
+			replace = "(" + storedPattern.expression + ")"
+		}
+
+		//Merge type Informations
+		for k, v := range storedPattern.typeInfo {
+			//Lastest type information is the one to keep in memory
+			if _, ok := ti[k]; !ok {
+				ti[k] = v
+			}
 		}
 
 		pattern = strings.Replace(pattern, values[0], replace, -1)
 	}
 
-	return pattern, nil
+	return pattern, ti, nil
 }

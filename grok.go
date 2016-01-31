@@ -89,6 +89,11 @@ func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 	for k, v := range m {
 		keys := []string{}
 		for _, key := range re.FindAllStringSubmatch(v, -1) {
+			if g.patterns[key[1]] == nil {
+				if m[key[1]] == "" {
+					return fmt.Errorf("no pattern found for %%{%s}", key[1])
+				}
+			}
 			keys = append(keys, key[1])
 		}
 		patternDeps[k] = keys

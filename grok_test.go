@@ -302,6 +302,25 @@ func TestNamedCapture(t *testing.T) {
 	check("POSINT", ``, "%{HOSTPORT}", `google.com:8080`)
 }
 
+func TestRemoveEmptyValues(t *testing.T) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true, RemoveEmptyValues: true})
+
+	capturesExists := func(key, pattern, text string) {
+		if captures, err := g.Parse(pattern, text); err != nil {
+			t.Fatalf("error can not capture : %s", err.Error())
+		} else {
+			if _, ok := captures[key]; ok {
+				t.Fatalf("%s should be absent", key)
+			}
+		}
+	}
+
+	capturesExists("rawrequest", "%{COMMONAPACHELOG}",
+		`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
+	)
+
+}
+
 func TestCapturesAndNamedCapture(t *testing.T) {
 
 	check := func(key, value, pattern, text string) {

@@ -83,21 +83,28 @@ func (g *Grok) addPattern(name, pattern string) error {
 }
 
 func (g *Grok) AddPattern(name, pattern string) error {
+	g.serviceMu.Lock()
+	defer g.serviceMu.Unlock()
 	g.rawPattern[name] = pattern
+	g.buildPatterns()
 	return nil
 }
 
 func (g *Grok) AddPatternsFromMap(m map[string]string) error {
-	for k, v := range m {
-		g.rawPattern[k] = v
+	g.serviceMu.Lock()
+	defer g.serviceMu.Unlock()
+
+	for name, pattern := range m {
+		g.rawPattern[name] = pattern
 	}
+	g.buildPatterns()
 	return nil
 }
 
 // AddPatternsFromMap adds new patterns from the specified map to the list of
 // loaded patterns.
 func (g *Grok) addPatternsFromMap(m map[string]string) error {
-	re, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
+	re, _ := regexp.Compile(`%{(\w+):?(\w+)?:?(\w+)?}`)
 
 	patternDeps := graph{}
 	for k, v := range m {
@@ -107,9 +114,7 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 		}
 		patternDeps[k] = keys
 	}
-
 	order, _ := sortGraph(patternDeps)
-
 	for _, key := range reverseList(order) {
 		g.addPattern(key, m[key])
 	}
@@ -251,37 +256,12 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 	return captures, nil
 }
 
-func (g *Grok) cache(pattern string, cr *gRegexp) {
-	g.serviceMu.Lock()
-	defer g.serviceMu.Unlock()
-	g.compiledPatterns[pattern] = cr
-}
-
-func (g *Grok) initPatterns() {
+func (g *Grok) buildPatterns() {
 	g.patterns = map[string]*gPattern{}
 	g.addPatternsFromMap(g.rawPattern)
 }
 
-func (g *Grok) cacheExists(pattern string) bool {
-	if len(g.patterns) == 0 {
-		g.initPatterns()
-	}
-
-	g.serviceMu.Lock()
-	defer g.serviceMu.Unlock()
-
-	if _, ok := g.compiledPatterns[pattern]; ok {
-		return true
-	}
-
-	return false
-}
-
 func (g *Grok) compile(pattern string) (*gRegexp, error) {
-	if g.cacheExists(pattern) {
-		return g.compiledPatterns[pattern], nil
-	}
-
 	newPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
 	if err != nil {
 		return nil, err
@@ -292,7 +272,6 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 		return nil, err
 	}
 	gr := &gRegexp{regexp: compiledRegex, typeInfo: ti}
-	g.cache(pattern, gr)
 	return gr, nil
 }
 

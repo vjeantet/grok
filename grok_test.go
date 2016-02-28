@@ -4,13 +4,11 @@ import "testing"
 
 func TestNew(t *testing.T) {
 	g := New()
-	g.initPatterns()
 	if len(g.Patterns()) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 
 	g = NewWithConfig(&Config{NamedCapturesOnly: true})
-	g.initPatterns()
 	if len(g.Patterns()) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
@@ -114,21 +112,17 @@ func TestAddPattern(t *testing.T) {
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
 
 	g := New()
-	g.initPatterns()
 	cPatterns := len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
-	g.initPatterns()
 	if len(g.patterns) != cPatterns+2 {
 		t.Fatalf("%d Default patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
 
 	g = NewWithConfig(&Config{NamedCapturesOnly: true})
-	g.initPatterns()
 	cPatterns = len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
-	g.initPatterns()
 	if len(g.patterns) != cPatterns+2 {
 		t.Fatalf("%d NamedCapture patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
@@ -413,7 +407,6 @@ func TestConcurentParse(t *testing.T) {
 
 func TestPatterns(t *testing.T) {
 	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
-	g.initPatterns()
 	if len(g.Patterns()) != 0 {
 		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
 	}
@@ -422,7 +415,6 @@ func TestPatterns(t *testing.T) {
 
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"1", pattern)
-	g.initPatterns()
 	if len(g.Patterns()) != 2 {
 		t.Fatalf("Patterns should return 2, have '%d'", len(g.Patterns()))
 	}
@@ -513,7 +505,10 @@ func TestParseTypedWithTypedParents(t *testing.T) {
 }
 
 func TestParseTypedWithSemanticHomonyms(t *testing.T) {
-	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	g := NewWithConfig(&Config{NamedCapturesOnly: true, SkipDefaultPatterns: true})
+
+	g.AddPattern("BASE10NUM", `([+-]?(?:[0-9]+(?:\.[0-9]+)?)|\.[0-9]+)`)
+	g.AddPattern("NUMBER", `(?:%{BASE10NUM})`)
 	g.AddPattern("MYNUM", `%{NUMBER:bytes:int}`)
 	g.AddPattern("MYSTR", `%{NUMBER:bytes:string}`)
 

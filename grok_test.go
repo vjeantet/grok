@@ -4,11 +4,13 @@ import "testing"
 
 func TestNew(t *testing.T) {
 	g := New()
+	g.initPatterns()
 	if len(g.Patterns()) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 
 	g = NewWithConfig(&Config{NamedCapturesOnly: true})
+	g.initPatterns()
 	if len(g.Patterns()) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
@@ -64,6 +66,17 @@ func TestNewWithNoDefaultPatterns(t *testing.T) {
 	}
 }
 
+func TestAddPatternErr(t *testing.T) {
+	name := "Error"
+	pattern := "%{ERR}"
+
+	g := New()
+	err := g.addPattern(name, pattern)
+	if err == nil {
+		t.Fatalf("AddPattern should returns an error when path is invalid")
+	}
+}
+
 func TestAddPatternsFromPath(t *testing.T) {
 	g := New()
 	err := g.AddPatternsFromPath("./Lorem ipsum Minim qui in.")
@@ -84,33 +97,38 @@ func TestAddPatternsFromPathFile(t *testing.T) {
 	}
 }
 
-func TestAddPatternErr(t *testing.T) {
-	name := "Error"
-	pattern := "%{ERR}"
+// func TestAddPatternErr(t *testing.T) {
+// 	name := "Error"
+// 	pattern := "%{ERR}"
 
-	g := New()
-	err := g.AddPattern(name, pattern)
-	if err == nil {
-		t.Fatalf("AddPattern should returns an error when path is invalid")
-	}
-}
+// 	g := New()
+// 	err := g.AddPattern(name, pattern)
+
+// 	if err == nil {
+// 		t.Fatalf("AddPattern should returns an error when path is invalid")
+// 	}
+// }
 
 func TestAddPattern(t *testing.T) {
 	name := "DAYO"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
 
 	g := New()
+	g.initPatterns()
 	cPatterns := len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
+	g.initPatterns()
 	if len(g.patterns) != cPatterns+2 {
 		t.Fatalf("%d Default patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
 
 	g = NewWithConfig(&Config{NamedCapturesOnly: true})
+	g.initPatterns()
 	cPatterns = len(g.patterns)
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"2", pattern)
+	g.initPatterns()
 	if len(g.patterns) != cPatterns+2 {
 		t.Fatalf("%d NamedCapture patterns should be available, have %d", cPatterns+2, len(g.patterns))
 	}
@@ -156,30 +174,6 @@ func TestErrorCompile(t *testing.T) {
 	_, err := g.compile("(")
 	if err == nil {
 		t.Fatal("Error:", err)
-	}
-}
-
-func BenchmarkCaptures(t *testing.B) {
-	g := New()
-	g.AddPatternsFromPath("./patterns/base")
-
-	check := func(key, value, pattern, text string) {
-
-		if captures, err := g.Parse(pattern, text); err != nil {
-			t.Fatalf("error can not capture : %s", err.Error())
-		} else {
-			if captures[key] != value {
-				t.Fatalf("%s should be '%s' have '%s'", key, value, captures[key])
-			}
-		}
-	}
-
-	// run the check function b.N times
-	for n := 0; n < t.N; n++ {
-		check("verb", "GET",
-			"%{COMMONAPACHELOG}",
-			`127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`,
-		)
 	}
 }
 
@@ -419,6 +413,7 @@ func TestConcurentParse(t *testing.T) {
 
 func TestPatterns(t *testing.T) {
 	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
+	g.initPatterns()
 	if len(g.Patterns()) != 0 {
 		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
 	}
@@ -427,7 +422,7 @@ func TestPatterns(t *testing.T) {
 
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"1", pattern)
-
+	g.initPatterns()
 	if len(g.Patterns()) != 2 {
 		t.Fatalf("Patterns should return 2, have '%d'", len(g.Patterns()))
 	}
@@ -523,7 +518,7 @@ func TestParseTypedWithSemanticHomonyms(t *testing.T) {
 	g.AddPattern("MYSTR", `%{NUMBER:bytes:string}`)
 
 	if captures, err := g.ParseTyped("%{MYNUM}", `207`); err != nil {
-		t.Fatalf("error can not capture : %s", err.Error())
+		t.Fatalf("error can not scapture : %s", err.Error())
 	} else {
 		if captures["bytes"] != 207 {
 			t.Fatalf("%s should be %#v have %#v", "bytes", 207, captures["bytes"])
@@ -535,5 +530,48 @@ func TestParseTypedWithSemanticHomonyms(t *testing.T) {
 		if captures["bytes"] != "207" {
 			t.Fatalf("%s should be %#v have %#v", "bytes", "207", captures["bytes"])
 		}
+	}
+}
+
+var resultNew *Grok
+
+func BenchmarkNew(b *testing.B) {
+	b.ReportAllocs()
+	b.ResetTimer()
+	var g *Grok
+	// run the check function b.N times
+	for n := 0; n < b.N; n++ {
+		g = NewWithConfig(&Config{NamedCapturesOnly: true})
+	}
+	resultNew = g
+}
+
+func BenchmarkCaptures(b *testing.B) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	b.ReportAllocs()
+	b.ResetTimer()
+	// run the check function b.N times
+	for n := 0; n < b.N; n++ {
+		g.Parse(`%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})" %{NUMBER:response} (?:%{NUMBER:bytes}|-)`, `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	}
+}
+
+func BenchmarkCapturesTypedFake(b *testing.B) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	b.ReportAllocs()
+	b.ResetTimer()
+	// run the check function b.N times
+	for n := 0; n < b.N; n++ {
+		g.Parse(`%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})" %{NUMBER:response} (?:%{NUMBER:bytes}|-)`, `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	}
+}
+
+func BenchmarkCapturesTypedReal(b *testing.B) {
+	g := NewWithConfig(&Config{NamedCapturesOnly: true})
+	b.ReportAllocs()
+	b.ResetTimer()
+	// run the check function b.N times
+	for n := 0; n < b.N; n++ {
+		g.ParseTyped(`%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion:int})?|%{DATA:rawrequest})" %{NUMBER:response:int} (?:%{NUMBER:bytes:int}|-)`, `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	}
 }

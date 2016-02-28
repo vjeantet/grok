@@ -2,6 +2,7 @@ package grok
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,12 +16,14 @@ import (
 type Config struct {
 	NamedCapturesOnly   bool
 	SkipDefaultPatterns bool
+	RemoveEmptyValues   bool
 	Patterns            map[string]string
 }
 
 // Grok object us used to load patterns and deconstruct strings using those
 // patterns.
 type Grok struct {
+	rawPattern       map[string]string
 	config           *Config
 	compiledPatterns map[string]*gRegexp
 	patterns         map[string]*gPattern
@@ -47,19 +50,18 @@ func New() *Grok {
 // NewWithConfig returns a Grok object that is configured to behave according
 // to the supplied Config structure.
 func NewWithConfig(config *Config) *Grok {
-	g := &Grok{config: config, compiledPatterns: map[string]*gRegexp{}}
-
-	if config.Patterns != nil {
-		g.AddPatternsFromMap(config.Patterns)
-	}
-
-	if g.patterns == nil {
-		g.patterns = make(map[string]*gPattern)
+	g := &Grok{
+		config:           config,
+		compiledPatterns: map[string]*gRegexp{},
+		patterns:         map[string]*gPattern{},
+		rawPattern:       map[string]string{},
 	}
 
 	if !config.SkipDefaultPatterns {
 		g.AddPatternsFromMap(patterns)
 	}
+
+	g.AddPatternsFromMap(config.Patterns)
 
 	return g
 }
@@ -70,7 +72,7 @@ func (g *Grok) Patterns() map[string]*gPattern {
 }
 
 // AddPattern adds a new pattern to the list of loaded patterns.
-func (g *Grok) AddPattern(name, pattern string) error {
+func (g *Grok) addPattern(name, pattern string) error {
 	dnPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
 	if err != nil {
 		return err
@@ -80,9 +82,21 @@ func (g *Grok) AddPattern(name, pattern string) error {
 	return nil
 }
 
+func (g *Grok) AddPattern(name, pattern string) error {
+	g.rawPattern[name] = pattern
+	return nil
+}
+
+func (g *Grok) AddPatternsFromMap(m map[string]string) error {
+	for k, v := range m {
+		g.rawPattern[k] = v
+	}
+	return nil
+}
+
 // AddPatternsFromMap adds new patterns from the specified map to the list of
 // loaded patterns.
-func (g *Grok) AddPatternsFromMap(m map[string]string) error {
+func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	re, _ := regexp.Compile(`%{(\w+):?(\w+)?}`)
 
 	patternDeps := graph{}
@@ -97,7 +111,7 @@ func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 	order, _ := sortGraph(patternDeps)
 
 	for _, key := range reverseList(order) {
-		g.AddPattern(key, m[key])
+		g.addPattern(key, m[key])
 	}
 
 	return nil
@@ -165,8 +179,13 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	captures := make(map[string]string)
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
+
 			if name != "" {
+				if g.config.RemoveEmptyValues == true && match[i] == "" {
+					continue
+				}
 				captures[name] = match[i]
+
 			}
 		}
 	}
@@ -185,21 +204,20 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 	if len(match) > 0 {
 		for i, segmentName := range gr.regexp.SubexpNames() {
 			if len(segmentName) != 0 {
-				var value, err interface{}
-				segmentType := gr.typeInfo[segmentName]
-				switch segmentType {
-				case "":
-					value, err = match[i], nil
-				case "int":
-					value, err = strconv.ParseFloat(match[i], 64)
-					value = int(value.(float64))
-				case "float":
-					value, err = strconv.ParseFloat(match[i], 64)
-				default:
-					return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
+				if g.config.RemoveEmptyValues == true && match[i] == "" {
+					continue
 				}
-				if err == nil {
-					captures[segmentName] = value
+				if segmentType, ok := gr.typeInfo[segmentName]; ok {
+					switch segmentType {
+					case "int":
+						captures[segmentName], _ = strconv.Atoi(match[i])
+					case "float":
+						captures[segmentName], _ = strconv.ParseFloat(match[i], 64)
+					default:
+						return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
+					}
+				} else {
+					captures[segmentName] = match[i]
 				}
 			}
 
@@ -222,6 +240,9 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
+				if g.config.RemoveEmptyValues == true && match[i] == "" {
+					continue
+				}
 				captures[name] = append(captures[name], match[i])
 			}
 		}
@@ -236,7 +257,16 @@ func (g *Grok) cache(pattern string, cr *gRegexp) {
 	g.compiledPatterns[pattern] = cr
 }
 
+func (g *Grok) initPatterns() {
+	g.patterns = map[string]*gPattern{}
+	g.addPatternsFromMap(g.rawPattern)
+}
+
 func (g *Grok) cacheExists(pattern string) bool {
+	if len(g.patterns) == 0 {
+		g.initPatterns()
+	}
+
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
 
@@ -289,11 +319,17 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 			return "", ti, fmt.Errorf("no pattern found for %%{%s}", syntax)
 		}
 
-		var replace string
+		var buffer bytes.Buffer
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
-			replace = fmt.Sprintf("(?P<%s>%s)", semantic, storedPattern.expression)
+			buffer.WriteString("(?P<")
+			buffer.WriteString(semantic)
+			buffer.WriteString(">")
+			buffer.WriteString(storedPattern.expression)
+			buffer.WriteString(")")
 		} else {
-			replace = "(" + storedPattern.expression + ")"
+			buffer.WriteString("(")
+			buffer.WriteString(storedPattern.expression)
+			buffer.WriteString(")")
 		}
 
 		//Merge type Informations
@@ -304,7 +340,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 			}
 		}
 
-		pattern = strings.Replace(pattern, values[0], replace, -1)
+		pattern = strings.Replace(pattern, values[0], buffer.String(), -1)
 	}
 
 	return pattern, ti, nil

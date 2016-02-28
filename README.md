@@ -1,7 +1,7 @@
-[![GoDoc](https://godoc.org/github.com/gemsi/grok?status.svg)](https://godoc.org/github.com/gemsi/grok)
-[![Build Status](https://travis-ci.org/gemsi/grok.svg)](https://travis-ci.org/gemsi/grok)
-[![Coverage Status](https://coveralls.io/repos/gemsi/grok/badge.png?branch=master)](https://coveralls.io/r/gemsi/grok?branch=master)
-[![Go Report Card](http://goreportcard.com/badge/gemsi/grok)](http:/goreportcard.com/report/gemsi/grok)
+[![GoDoc](https://godoc.org/github.com/vjeantet/grok?status.svg)](https://godoc.org/github.com/vjeantet/grok)
+[![Build Status](https://travis-ci.org/vjeantet/grok.svg)](https://travis-ci.org/vjeantet/grok)
+[![Coverage Status](https://coveralls.io/repos/vjeantet/grok/badge.png?branch=master)](https://coveralls.io/r/vjeantet/grok?branch=master)
+[![Go Report Card](http://goreportcard.com/badge/vjeantet/grok)](http:/goreportcard.com/report/vjeantet/grok)
 [![Documentation Status](https://readthedocs.org/projects/grok-lib-for-golang/badge/?version=latest)](https://readthedocs.org/projects/grok-lib-for-golang/?badge=latest)
 
 
@@ -12,12 +12,12 @@ A simple library to parse grok patterns with Go.
 Make sure you have a working Go environment.
 
 ```sh
-go get github.com/gemsi/grok
+go get github.com/vjeantet/grok
 ```
 
 # Use in your project
 ```go
-import "github.com/gemsi/grok"
+import "github.com/vjeantet/grok"
 ```
 
 # Usage
@@ -45,7 +45,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gemsi/grok"
+	"github.com/vjeantet/grok"
 )
 
 func main() {
@@ -94,7 +94,7 @@ package main
 import (
   "fmt"
 
-  "github.com/gemsi/grok"
+  "github.com/vjeantet/grok"
 )
 
 func main() {

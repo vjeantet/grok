@@ -29,10 +29,10 @@ You also can load your custom patterns from a file (or folder) using grok.AddPat
 
 ## Parse all or only named captures
 ```go
-g := grok.New()
+g, _ := grok.New()
 values, _  := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
-g = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
+g, _ = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
 values2, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 ```
 values is a map with all captured groups

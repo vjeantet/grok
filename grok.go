@@ -102,8 +102,7 @@ func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 	for name, pattern := range m {
 		g.rawPattern[name] = pattern
 	}
-	g.buildPatterns()
-	return nil
+	return g.buildPatterns()
 }
 
 // AddPatternsFromMap adds new patterns from the specified map to the list of
@@ -115,6 +114,12 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	for k, v := range m {
 		keys := []string{}
 		for _, key := range re.FindAllStringSubmatch(v, -1) {
+			if g.patterns[key[1]] == nil {
+
+				if _, ok := m[key[1]]; !ok {
+					return fmt.Errorf("no pattern found for %%{%s}", key[1])
+				}
+			}
 			keys = append(keys, key[1])
 		}
 		patternDeps[k] = keys
@@ -262,9 +267,9 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 	return captures, nil
 }
 
-func (g *Grok) buildPatterns() {
+func (g *Grok) buildPatterns() error {
 	g.patterns = map[string]*gPattern{}
-	g.addPatternsFromMap(g.rawPattern)
+	return g.addPatternsFromMap(g.rawPattern)
 }
 
 func (g *Grok) compile(pattern string) (*gRegexp, error) {

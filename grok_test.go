@@ -604,3 +604,68 @@ func BenchmarkCapturesTypedReal(b *testing.B) {
 		g.ParseTyped(`%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion:int})?|%{DATA:rawrequest})" %{NUMBER:response:int} (?:%{NUMBER:bytes:int}|-)`, `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 	}
 }
+
+func TestGrok_AddPatternsFromMap_not_exist(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("AddPatternsFromMap panics: %v", r)
+		}
+	}()
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
+	err := g.AddPatternsFromMap(map[string]string{
+		"SOME": "%{NOT_EXIST}",
+	})
+	if err == nil {
+		t.Errorf("AddPatternsFromMap should returns an error")
+	}
+}
+
+func TestGrok_AddPatternsFromMap_simple(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("AddPatternsFromMap panics: %v", r)
+		}
+	}()
+	g := NewWithConfig(&Config{SkipDefaultPatterns: true})
+	err := g.AddPatternsFromMap(map[string]string{
+		"NO3": `\d{3}`,
+	})
+	if err != nil {
+		t.Errorf("AddPatternsFromMap returns an error: %v", err)
+	}
+	mss, err := g.Parse("%{NO3:match}", "333")
+	if err != nil {
+		t.Error("parsing error:", err)
+		t.FailNow()
+	}
+	if mss["match"] != "333" {
+		t.Errorf("bad match: expected 333, got %s", mss["match"])
+	}
+}
+
+func TestGrok_AddPatternsFromMap_complex(t *testing.T) {
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("AddPatternsFromMap panics: %v", r)
+		}
+	}()
+	g := NewWithConfig(&Config{
+		SkipDefaultPatterns: true,
+		NamedCapturesOnly:   true,
+	})
+	err := g.AddPatternsFromMap(map[string]string{
+		"NO3": `\d{3}`,
+		"NO6": "%{NO3}%{NO3}",
+	})
+	if err != nil {
+		t.Errorf("AddPatternsFromMap returns an error: %v", err)
+	}
+	mss, err := g.Parse("%{NO6:number}", "333666")
+	if err != nil {
+		t.Error("parsing error:", err)
+		t.FailNow()
+	}
+	if mss["number"] != "333666" {
+		t.Errorf("bad match: expected 333666, got %s", mss["match"])
+	}
+}

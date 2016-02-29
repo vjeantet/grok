@@ -76,12 +76,8 @@ func NewWithConfig(config *Config) (*Grok, error) {
 	if err != nil {
 		return nil, err
 	}
-	return g, nil
-}
 
-// Patterns return a map of the loaded patterns.
-func (g *Grok) Patterns() map[string]*gPattern {
-	return g.patterns
+	return g, nil
 }
 
 // AddPattern adds a new pattern to the list of loaded patterns.
@@ -95,6 +91,7 @@ func (g *Grok) addPattern(name, pattern string) error {
 	return nil
 }
 
+// AddPattern adds a named pattern to grok
 func (g *Grok) AddPattern(name, pattern string) error {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
@@ -103,6 +100,7 @@ func (g *Grok) AddPattern(name, pattern string) error {
 	return nil
 }
 
+// AddPatternsFromMap loads a map of named patterns
 func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 	g.serviceMu.Lock()
 	defer g.serviceMu.Unlock()
@@ -217,7 +215,7 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return captures, nil
 }
 
-// Parse returns a inteface{} map with captured fields based on provided pattern over the text
+// ParseTyped returns a inteface{} map with typed captured fields based on provided pattern over the text
 func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
 	gr, err := g.compile(pattern)
 	if err != nil {

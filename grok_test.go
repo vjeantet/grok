@@ -4,12 +4,12 @@ import "testing"
 
 func TestNew(t *testing.T) {
 	g, _ := New()
-	if len(g.Patterns()) == 0 {
+	if len(g.patterns) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 
 	g, _ = NewWithConfig(&Config{NamedCapturesOnly: true})
-	if len(g.Patterns()) == 0 {
+	if len(g.patterns) == 0 {
 		t.Fatal("the Grok object should have some patterns pre loaded")
 	}
 }
@@ -59,7 +59,7 @@ func TestMultiParseWithDefaultCaptureMode(t *testing.T) {
 
 func TestNewWithNoDefaultPatterns(t *testing.T) {
 	g, _ := NewWithConfig(&Config{SkipDefaultPatterns: true})
-	if len(g.Patterns()) != 0 {
+	if len(g.patterns) != 0 {
 		t.Fatal("Using SkipDefaultPatterns the Grok object should not have any patterns pre loaded")
 	}
 }
@@ -429,16 +429,16 @@ func TestConcurentParse(t *testing.T) {
 
 func TestPatterns(t *testing.T) {
 	g, _ := NewWithConfig(&Config{SkipDefaultPatterns: true})
-	if len(g.Patterns()) != 0 {
-		t.Fatalf("Patterns should return 0, have '%d'", len(g.Patterns()))
+	if len(g.patterns) != 0 {
+		t.Fatalf("Patterns should return 0, have '%d'", len(g.patterns))
 	}
 	name := "DAY0"
 	pattern := "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)"
 
 	g.AddPattern(name, pattern)
 	g.AddPattern(name+"1", pattern)
-	if len(g.Patterns()) != 2 {
-		t.Fatalf("Patterns should return 2, have '%d'", len(g.Patterns()))
+	if len(g.patterns) != 2 {
+		t.Fatalf("Patterns should return 2, have '%d'", len(g.patterns))
 	}
 }
 
@@ -454,7 +454,7 @@ func TestParseTypedWithDefaultCaptureMode(t *testing.T) {
 				t.Fatalf("%s should be '%d' have '%d'", "status", 200, captures["status"])
 			} else {
 				if captures["duration"] != 0.8 {
-					t.Fatalf("%s should be '%d' have '%d'", "duration", 0.8, captures["duration"])
+					t.Fatalf("%s should be '%f' have '%f'", "duration", 0.8, captures["duration"])
 				}
 			}
 		}
@@ -470,7 +470,7 @@ func TestParseTypedWithNoTypeInfo(t *testing.T) {
 			t.Fatalf("%s should be '%s' have '%s'", "timestamp", "23/Apr/2014:22:58:32 +0200", captures["timestamp"])
 		}
 		if captures["TIME"] != nil {
-			t.Fatalf("%s should be '%s' have '%s'", "TIME", nil, captures["TIME"])
+			t.Fatalf("%s should be nil have '%s'", "TIME", captures["TIME"])
 		}
 	}
 

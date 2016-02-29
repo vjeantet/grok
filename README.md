@@ -22,10 +22,10 @@ import "github.com/vjeantet/grok"
 
 # Usage
 ## Available patterns and custom ones
-By default this grok package contains all patterns you can see in patterns folder.
-You don't need to add these patterns.
+By default this grok package contains only patterns you can see in patterns/grok-patterns file.
+
 When you want to add a custom pattern, use the grok.AddPattern(nameOfPattern, pattern), see the example folder for an example of usage.
-You also can load your custom patterns from a file (or folder) using grok.AddPatternsFromPath(path).
+You also can load your custom patterns from a file (or folder) using grok.AddPatternsFromPath(path), or PatterndDir configuration.
 
 ## Parse all or only named captures
 ```go

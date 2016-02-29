@@ -49,7 +49,7 @@ import (
 )
 
 func main() {
-	g := grok.New()
+	g, _ := grok.New()
 	values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
 	for k, v := range values {
@@ -98,7 +98,7 @@ import (
 )
 
 func main() {
-  g := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
+  g, _ := grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
   values, _ := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
 
   for k, v := range values {

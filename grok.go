@@ -17,7 +17,7 @@ type Config struct {
 	NamedCapturesOnly   bool
 	SkipDefaultPatterns bool
 	RemoveEmptyValues   bool
-	PatternsDir         string
+	PatternsDir         []string
 	Patterns            map[string]string
 }
 
@@ -44,13 +44,13 @@ type gRegexp struct {
 type semanticTypes map[string]string
 
 // New returns a Grok object.
-func New() *Grok {
+func New() (*Grok, error) {
 	return NewWithConfig(&Config{})
 }
 
 // NewWithConfig returns a Grok object that is configured to behave according
 // to the supplied Config structure.
-func NewWithConfig(config *Config) *Grok {
+func NewWithConfig(config *Config) (*Grok, error) {
 	g := &Grok{
 		config:           config,
 		compiledPatterns: map[string]*gRegexp{},
@@ -62,13 +62,21 @@ func NewWithConfig(config *Config) *Grok {
 		g.AddPatternsFromMap(patterns)
 	}
 
-	if config.PatternsDir != "" {
-		g.AddPatternsFromPath(config.PatternsDir)
+	if len(config.PatternsDir) > 0 {
+		for _, path := range config.PatternsDir {
+			err := g.AddPatternsFromPath(path)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 	}
 
-	g.AddPatternsFromMap(config.Patterns)
-
-	return g
+	err := g.AddPatternsFromMap(config.Patterns)
+	if err != nil {
+		return nil, err
+	}
+	return g, nil
 }
 
 // Patterns return a map of the loaded patterns.

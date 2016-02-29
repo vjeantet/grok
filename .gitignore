@@ -24,3 +24,5 @@ _testmain.go
 *.prof
 *.cov
 .coveralls.yml
+# added by GitSavvy
+/.DS_Store

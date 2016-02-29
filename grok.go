@@ -17,6 +17,7 @@ type Config struct {
 	NamedCapturesOnly   bool
 	SkipDefaultPatterns bool
 	RemoveEmptyValues   bool
+	PatternsDir         string
 	Patterns            map[string]string
 }
 
@@ -59,6 +60,10 @@ func NewWithConfig(config *Config) *Grok {
 
 	if !config.SkipDefaultPatterns {
 		g.AddPatternsFromMap(patterns)
+	}
+
+	if config.PatternsDir != "" {
+		g.AddPatternsFromPath(config.PatternsDir)
 	}
 
 	g.AddPatternsFromMap(config.Patterns)
@@ -114,6 +119,7 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 		}
 		patternDeps[k] = keys
 	}
+	// pp.Print(patternDeps)
 	order, _ := sortGraph(patternDeps)
 	for _, key := range reverseList(order) {
 		g.addPattern(key, m[key])

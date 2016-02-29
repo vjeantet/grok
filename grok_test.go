@@ -75,12 +75,27 @@ func TestAddPatternErr(t *testing.T) {
 	}
 }
 
-func TestAddPatternsFromPath(t *testing.T) {
+func TestAddPatternsFromPathErr(t *testing.T) {
 	g := New()
 	err := g.AddPatternsFromPath("./Lorem ipsum Minim qui in.")
 	if err == nil {
 		t.Fatalf("AddPatternsFromPath should returns an error when path is invalid")
 	}
+}
+
+func TestConfigPatternsDir(t *testing.T) {
+	g := NewWithConfig(&Config{PatternsDir: "./patterns"})
+	// g := New()
+
+	if captures, err := g.Parse("%{SYSLOGLINE}", `Sep 12 23:19:02 docker syslog-ng[25389]: syslog-ng starting up; version='3.5.3'`); err != nil {
+		t.Fatalf("error : %s", err.Error())
+	} else {
+		// pp.Print(captures)
+		if captures["program"] != "syslog-ng" {
+			t.Fatalf("%s should be '%s' have '%s'", "program", "syslog-ng", captures["program"])
+		}
+	}
+
 }
 
 func TestAddPatternsFromPathFileOpenErr(t *testing.T) {
@@ -89,7 +104,7 @@ func TestAddPatternsFromPathFileOpenErr(t *testing.T) {
 
 func TestAddPatternsFromPathFile(t *testing.T) {
 	g := New()
-	err := g.AddPatternsFromPath("./patterns/base")
+	err := g.AddPatternsFromPath("./patterns/grok-patterns")
 	if err != nil {
 		t.Fatalf("err %#v", err)
 	}

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/gemsi/grok"
+	"github.com/vjeantet/grok"
 )
 
 func main() {

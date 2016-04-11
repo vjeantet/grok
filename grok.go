@@ -4,12 +4,18 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
+)
+
+var (
+	defn   = regexp.MustCompile(`%{(\w+):?(\w+)?:?(\w+)?}`)
+	normal = regexp.MustCompile(`%{(\w+:?\w+:?\w+)}`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -72,8 +78,7 @@ func NewWithConfig(config *Config) (*Grok, error) {
 
 	}
 
-	err := g.AddPatternsFromMap(config.Patterns)
-	if err != nil {
+	if err := g.AddPatternsFromMap(config.Patterns); err != nil {
 		return nil, err
 	}
 
@@ -94,9 +99,9 @@ func (g *Grok) addPattern(name, pattern string) error {
 // AddPattern adds a named pattern to grok
 func (g *Grok) AddPattern(name, pattern string) error {
 	g.serviceMu.Lock()
-	defer g.serviceMu.Unlock()
 	g.rawPattern[name] = pattern
 	g.buildPatterns()
+	g.serviceMu.Unlock()
 	return nil
 }
 
@@ -114,14 +119,11 @@ func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 // AddPatternsFromMap adds new patterns from the specified map to the list of
 // loaded patterns.
 func (g *Grok) addPatternsFromMap(m map[string]string) error {
-	re, _ := regexp.Compile(`%{(\w+):?(\w+)?:?(\w+)?}`)
-
 	patternDeps := graph{}
 	for k, v := range m {
 		keys := []string{}
-		for _, key := range re.FindAllStringSubmatch(v, -1) {
+		for _, key := range defn.FindAllStringSubmatch(v, -1) {
 			if g.patterns[key[1]] == nil {
-
 				if _, ok := m[key[1]]; !ok {
 					return fmt.Errorf("no pattern found for %%{%s}", key[1])
 				}
@@ -130,7 +132,6 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 		}
 		patternDeps[k] = keys
 	}
-	// pp.Print(patternDeps)
 	order, _ := sortGraph(patternDeps)
 	for _, key := range reverseList(order) {
 		g.addPattern(key, m[key])
@@ -191,19 +192,13 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 	return true, nil
 }
 
-// Parse the specified text and return a map with the results.
-func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
-	gr, err := g.compile(pattern)
-	if err != nil {
-		return nil, err
-	}
-
+// CompiledParse parses the specified text and returns a map with the results.
+func (g *Grok) CompiledParse(gr *gRegexp, text string) (map[string]string, error) {
 	captures := make(map[string]string)
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
-
 			if name != "" {
-				if g.config.RemoveEmptyValues == true && match[i] == "" {
+				if g.config.RemoveEmptyValues && match[i] == "" {
 					continue
 				}
 				captures[name] = match[i]
@@ -213,6 +208,16 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	}
 
 	return captures, nil
+}
+
+// Parse the specified text and return a map with the results.
+func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
+	gr, err := g.compile(pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	return g.CompiledParse(gr, text)
 }
 
 // ParseTyped returns a inteface{} map with typed captured fields based on provided pattern over the text
@@ -279,6 +284,9 @@ func (g *Grok) buildPatterns() error {
 }
 
 func (g *Grok) compile(pattern string) (*gRegexp, error) {
+	if gr, ok := g.compiledPatterns[pattern]; ok {
+		return gr, nil
+	}
 	newPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
 	if err != nil {
 		return nil, err
@@ -289,13 +297,13 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 		return nil, err
 	}
 	gr := &gRegexp{regexp: compiledRegex, typeInfo: ti}
+	g.compiledPatterns[pattern] = gr
 	return gr, nil
 }
 
 func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPattern) (string, semanticTypes, error) {
-	r, _ := regexp.Compile(`%{(\w+:?\w+:?\w+)}`)
 	ti := semanticTypes{}
-	for _, values := range r.FindAllStringSubmatch(pattern, -1) {
+	for _, values := range normal.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
 		syntax, semantic := names[0], names[0]
@@ -340,4 +348,31 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 	}
 
 	return pattern, ti, nil
+
+}
+
+// ParseStream will match the given pattern on a line by line basis from the reader
+// and apply the results to the process function
+func (g *Grok) ParseStream(reader *bufio.Reader, pattern string, process func(map[string]string) error) error {
+	gr, err := g.compile(pattern)
+	if err != nil {
+		return err
+	}
+	for {
+		line, err := reader.ReadString('\n')
+		fmt.Println("LINE:", line)
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		values, err := g.CompiledParse(gr, line)
+		if err != nil {
+			return err
+		}
+		if err = process(values); err != nil {
+			return err
+		}
+	}
 }

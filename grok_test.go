@@ -84,8 +84,10 @@ func TestAddPatternsFromPathErr(t *testing.T) {
 }
 
 func TestConfigPatternsDir(t *testing.T) {
-	g, _ := NewWithConfig(&Config{PatternsDir: []string{"./patterns"}})
-	// g,_ := New()
+	g, err := NewWithConfig(&Config{PatternsDir: []string{"./patterns"}})
+	if err != nil {
+		t.Error(err)
+	}
 
 	if captures, err := g.Parse("%{SYSLOGLINE}", `Sep 12 23:19:02 docker syslog-ng[25389]: syslog-ng starting up; version='3.5.3'`); err != nil {
 		t.Fatalf("error : %s", err.Error())

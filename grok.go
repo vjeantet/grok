@@ -192,9 +192,10 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 	return true, nil
 }
 
-// CompiledParse parses the specified text and returns a map with the results.
-func (g *Grok) CompiledParse(gr *gRegexp, text string) (map[string]string, error) {
+// compiledParse parses the specified text and returns a map with the results.
+func (g *Grok) compiledParse(gr *gRegexp, text string) (map[string]string, error) {
 	captures := make(map[string]string)
+	g.serviceMu.Lock()
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
@@ -206,6 +207,7 @@ func (g *Grok) CompiledParse(gr *gRegexp, text string) (map[string]string, error
 			}
 		}
 	}
+	g.serviceMu.Unlock()
 
 	return captures, nil
 }
@@ -217,7 +219,7 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 		return nil, err
 	}
 
-	return g.CompiledParse(gr, text)
+	return g.compiledParse(gr, text)
 }
 
 // ParseTyped returns a inteface{} map with typed captured fields based on provided pattern over the text
@@ -284,6 +286,11 @@ func (g *Grok) buildPatterns() error {
 }
 
 func (g *Grok) compile(pattern string) (*gRegexp, error) {
+	g.serviceMu.Lock()
+	defer g.serviceMu.Unlock()
+	if g.compiledPatterns == nil {
+		g.compiledPatterns = map[string]*gRegexp{}
+	}
 	if gr, ok := g.compiledPatterns[pattern]; ok {
 		return gr, nil
 	}
@@ -360,14 +367,13 @@ func (g *Grok) ParseStream(reader *bufio.Reader, pattern string, process func(ma
 	}
 	for {
 		line, err := reader.ReadString('\n')
-		fmt.Println("LINE:", line)
 		if err == io.EOF {
 			return nil
 		}
 		if err != nil {
 			return err
 		}
-		values, err := g.CompiledParse(gr, line)
+		values, err := g.compiledParse(gr, line)
 		if err != nil {
 			return err
 		}

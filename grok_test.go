@@ -1,6 +1,11 @@
 package grok
 
-import "testing"
+import (
+	"bufio"
+	"fmt"
+	"strings"
+	"testing"
+)
 
 func TestNew(t *testing.T) {
 	g, _ := New()
@@ -657,5 +662,47 @@ func TestGrok_AddPatternsFromMap_complex(t *testing.T) {
 	}
 	if mss["number"] != "333666" {
 		t.Errorf("bad match: expected 333666, got %s", mss["match"])
+	}
+}
+
+func TestParseStream(t *testing.T) {
+	g, _ := New()
+	pTest := func(m map[string]string) error {
+		ts, ok := m["timestamp"]
+		if !ok {
+			t.Error("timestamp not found")
+		}
+		if len(ts) == 0 {
+			t.Error("empty timestamp")
+		}
+		return nil
+	}
+	const testLog = `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
+127.0.0.1 - - [23/Apr/2014:22:59:32 +0200] "GET /index.php HTTP/1.1" 404 207
+127.0.0.1 - - [23/Apr/2014:23:00:32 +0200] "GET /index.php HTTP/1.1" 404 207
+`
+
+	r := bufio.NewReader(strings.NewReader(testLog))
+	if err := g.ParseStream(r, "%{COMMONAPACHELOG}", pTest); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestParseStreamError(t *testing.T) {
+	g, _ := New()
+	pTest := func(m map[string]string) error {
+		if _, ok := m["timestamp"]; !ok {
+			return fmt.Errorf("timestamp not found")
+		}
+		return nil
+	}
+	const testLog = `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207
+127.0.0.1 - - [xxxxxxxxxxxxxxxxxxxx +0200] "GET /index.php HTTP/1.1" 404 207
+127.0.0.1 - - [23/Apr/2014:23:00:32 +0200] "GET /index.php HTTP/1.1" 404 207
+`
+
+	r := bufio.NewReader(strings.NewReader(testLog))
+	if err := g.ParseStream(r, "%{COMMONAPACHELOG}", pTest); err == nil {
+		t.Fatal("Error expected")
 	}
 }

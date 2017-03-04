@@ -14,8 +14,7 @@ import (
 )
 
 var (
-	defn   = regexp.MustCompile(`%{(\w+):?(\w+)?:?(\w+)?}`)
-	normal = regexp.MustCompile(`%{(\w+:?\w+:?\w+)}`)
+	normal = regexp.MustCompile(`%{(\w+(?::\w+(?::\w+)?)?)}`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -122,13 +121,15 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	patternDeps := graph{}
 	for k, v := range m {
 		keys := []string{}
-		for _, key := range defn.FindAllStringSubmatch(v, -1) {
-			if g.patterns[key[1]] == nil {
-				if _, ok := m[key[1]]; !ok {
-					return fmt.Errorf("no pattern found for %%{%s}", key[1])
+		for _, key := range normal.FindAllStringSubmatch(v, -1) {
+			names := strings.Split(key[1], ":")
+			syntax := names[0]
+			if g.patterns[syntax] == nil {
+				if _, ok := m[syntax]; !ok {
+					return fmt.Errorf("no pattern found for %%{%s}", syntax)
 				}
 			}
-			keys = append(keys, key[1])
+			keys = append(keys, syntax)
 		}
 		patternDeps[k] = keys
 	}

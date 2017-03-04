@@ -163,6 +163,19 @@ func TestErrorMatch(t *testing.T) {
 
 }
 
+func TestShortName(t *testing.T) {
+	g, _ := New()
+	g.AddPattern("A", "a")
+
+	m, err := g.Match("%{A}", "a")
+	if err != nil {
+		t.Fatal("a should match %%{A}: err=%s", err.Error())
+	}
+	if !m {
+		t.Fatal("%%{A} didn't match 'a'")
+	}
+}
+
 func TestDayCompile(t *testing.T) {
 	g, _ := New()
 	g.AddPattern("DAY", "(?:Mon(?:day)?|Tue(?:sday)?|Wed(?:nesday)?|Thu(?:rsday)?|Fri(?:day)?|Sat(?:urday)?|Sun(?:day)?)")

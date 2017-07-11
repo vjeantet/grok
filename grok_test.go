@@ -613,6 +613,18 @@ func BenchmarkCapturesTypedReal(b *testing.B) {
 	}
 }
 
+func BenchmarkParallelCaptures(b *testing.B) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(b *testing.PB) {
+		for b.Next() {
+			g.Parse(`%{IPORHOST:clientip} %{USER:ident} %{USER:auth} \[%{HTTPDATE:timestamp}\] "(?:%{WORD:verb} %{NOTSPACE:request}(?: HTTP/%{NUMBER:httpversion})?|%{DATA:rawrequest})" %{NUMBER:response} (?:%{NUMBER:bytes}|-)`, `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+		}
+	})
+}
+
 func TestGrok_AddPatternsFromMap_not_exist(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {

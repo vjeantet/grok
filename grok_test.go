@@ -209,6 +209,11 @@ func TestNamedCaptures(t *testing.T) {
 		"%{DAY:jour}",
 		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
 	)
+
+	check("day-of.week", "Tue",
+		"%{DAY:day-of.week}",
+		"Tue May 15 11:21:42 [conn1047685] moveChunk deleted: 7157",
+	)
 }
 
 func TestErrorCaptureUnknowPattern(t *testing.T) {

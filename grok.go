@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	normal = regexp.MustCompile(`%{(\w+(?::\w+(?::\w+)?)?)}`)
+	canonical = regexp.MustCompile(`%{(\w+(?::\w+(?::\w+)?)?)}`)
+	normal    = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
+	symbolic  = regexp.MustCompile(`\W`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -31,6 +33,7 @@ type Config struct {
 type Grok struct {
 	rawPattern       map[string]string
 	config           *Config
+	aliases          map[string]string
 	compiledPatterns map[string]*gRegexp
 	patterns         map[string]*gPattern
 	patternsGuard    *sync.RWMutex
@@ -59,6 +62,7 @@ func New() (*Grok, error) {
 func NewWithConfig(config *Config) (*Grok, error) {
 	g := &Grok{
 		config:           config,
+		aliases:          map[string]string{},
 		compiledPatterns: map[string]*gRegexp{},
 		patterns:         map[string]*gPattern{},
 		rawPattern:       map[string]string{},
@@ -125,7 +129,7 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	patternDeps := graph{}
 	for k, v := range m {
 		keys := []string{}
-		for _, key := range normal.FindAllStringSubmatch(v, -1) {
+		for _, key := range canonical.FindAllStringSubmatch(v, -1) {
 			names := strings.Split(key[1], ":")
 			syntax := names[0]
 			if g.patterns[syntax] == nil {
@@ -206,6 +210,7 @@ func (g *Grok) compiledParse(gr *gRegexp, text string) (map[string]string, error
 				if g.config.RemoveEmptyValues && match[i] == "" {
 					continue
 				}
+				name = g.nameToAlias(name)
 				captures[name] = match[i]
 			}
 		}
@@ -238,17 +243,18 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 				if g.config.RemoveEmptyValues == true && match[i] == "" {
 					continue
 				}
+				name := g.nameToAlias(segmentName)
 				if segmentType, ok := gr.typeInfo[segmentName]; ok {
 					switch segmentType {
 					case "int":
-						captures[segmentName], _ = strconv.Atoi(match[i])
+						captures[name], _ = strconv.Atoi(match[i])
 					case "float":
-						captures[segmentName], _ = strconv.ParseFloat(match[i], 64)
+						captures[name], _ = strconv.ParseFloat(match[i], 64)
 					default:
 						return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
 					}
 				} else {
-					captures[segmentName] = match[i]
+					captures[name] = match[i]
 				}
 			}
 
@@ -274,6 +280,7 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 				if g.config.RemoveEmptyValues == true && match[i] == "" {
 					continue
 				}
+				name = g.nameToAlias(name)
 				captures[name] = append(captures[name], match[i])
 			}
 		}
@@ -321,9 +328,10 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 	for _, values := range normal.FindAllStringSubmatch(pattern, -1) {
 		names := strings.Split(values[1], ":")
 
-		syntax, semantic := names[0], names[0]
+		syntax, semantic, alias := names[0], names[0], names[0]
 		if len(names) > 1 {
 			semantic = names[1]
+			alias = g.aliasizePatternName(semantic)
 		}
 
 		// Add type cast information only if type set, and not string
@@ -341,7 +349,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 		var buffer bytes.Buffer
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
 			buffer.WriteString("(?P<")
-			buffer.WriteString(semantic)
+			buffer.WriteString(alias)
 			buffer.WriteString(">")
 			buffer.WriteString(storedPattern.expression)
 			buffer.WriteString(")")
@@ -364,6 +372,20 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 
 	return pattern, ti, nil
 
+}
+
+func (g *Grok) aliasizePatternName(name string) string {
+	alias := symbolic.ReplaceAllString(name, "_")
+	g.aliases[alias] = name
+	return alias
+}
+
+func (g *Grok) nameToAlias(name string) string {
+	alias, ok := g.aliases[name]
+	if ok {
+		return alias
+	}
+	return name
 }
 
 // ParseStream will match the given pattern on a line by line basis from the reader

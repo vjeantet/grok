@@ -26,3 +26,5 @@ _testmain.go
 .coveralls.yml
 # added by GitSavvy
 .DS_Store
+.idea
+*.i*

@@ -244,7 +244,7 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 					continue
 				}
 				name := g.nameToAlias(segmentName)
-				if segmentType, ok := gr.typeInfo[segmentName]; ok {
+				if segmentType, ok := gr.typeInfo[name]; ok {
 					switch segmentType {
 					case "int":
 						captures[name], _ = strconv.Atoi(match[i])

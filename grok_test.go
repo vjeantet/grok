@@ -169,7 +169,7 @@ func TestShortName(t *testing.T) {
 
 	m, err := g.Match("%{A}", "a")
 	if err != nil {
-		t.Fatal("a should match %%{A}: err=%s", err.Error())
+		t.Fatalf("a should match %%{A}: err=%s", err.Error())
 	}
 	if !m {
 		t.Fatal("%%{A} didn't match 'a'")
@@ -571,6 +571,17 @@ func TestParseTypedWithSemanticHomonyms(t *testing.T) {
 	} else {
 		if captures["bytes"] != "207" {
 			t.Fatalf("%s should be %#v have %#v", "bytes", "207", captures["bytes"])
+		}
+	}
+}
+
+func TestParseTypedWithAlias(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.ParseTyped("%{NUMBER:access.response_code:int}", `404`); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		if captures["access.response_code"] != 404 {
+			t.Fatalf("%s should be %#v have %#v", "access.response_code", 404, captures["access.response_code"])
 		}
 	}
 }

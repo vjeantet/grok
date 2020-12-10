@@ -14,9 +14,9 @@ import (
 )
 
 var (
-	canonical = regexp.MustCompile(`%{(\w+(?::\w+(?::\w+)?)?)}`)
-	normal    = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
-	symbolic  = regexp.MustCompile(`\W`)
+	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
+	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
+	symbolic = regexp.MustCompile(`\W`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -129,7 +129,10 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	patternDeps := graph{}
 	for k, v := range m {
 		keys := []string{}
-		for _, key := range canonical.FindAllStringSubmatch(v, -1) {
+		for _, key := range normal.FindAllStringSubmatch(v, -1) {
+			if !valid.MatchString(key[1]) {
+				return fmt.Errorf("invalid pattern %%{%s}", key[1])
+			}
 			names := strings.Split(key[1], ":")
 			syntax := names[0]
 			if g.patterns[syntax] == nil {
@@ -326,6 +329,9 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPattern) (string, semanticTypes, error) {
 	ti := semanticTypes{}
 	for _, values := range normal.FindAllStringSubmatch(pattern, -1) {
+		if !valid.MatchString(values[1]) {
+			return "", ti, fmt.Errorf("invalid pattern %%{%s}", values[1])
+		}
 		names := strings.Split(values[1], ":")
 
 		syntax, semantic, alias := names[0], names[0], names[0]

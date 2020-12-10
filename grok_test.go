@@ -225,6 +225,19 @@ func TestErrorCaptureUnknowPattern(t *testing.T) {
 	}
 }
 
+func TestErrorCaptureInvalidPattern(t *testing.T) {
+	g, _ := New()
+	pattern := "%{-InvalidPattern-}"
+	expectederr := "invalid pattern %{-InvalidPattern-}"
+	_, err := g.Parse(pattern, "")
+	if err == nil {
+		t.Fatal("Expected error not set")
+	}
+	if err.Error() != expectederr {
+		t.Fatalf("Expected error %q but got %q", expectederr, err.Error())
+	}
+}
+
 func TestParse(t *testing.T) {
 	g, _ := New()
 	g.AddPatternsFromPath("./patterns")

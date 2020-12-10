@@ -234,7 +234,7 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return g.compiledParse(gr, text)
 }
 
-// ParseTyped returns a inteface{} map with typed captured fields based on provided pattern over the text
+// ParseTyped returns a interface{} map with typed captured fields based on provided pattern over the text
 func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
 	gr, err := g.compile(pattern)
 	if err != nil {

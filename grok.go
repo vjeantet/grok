@@ -71,7 +71,10 @@ func NewWithConfig(config *Config) (*Grok, error) {
 	}
 
 	if !config.SkipDefaultPatterns {
-		g.AddPatternsFromMap(patterns)
+		err := g.AddPatternsFromMap(patterns)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(config.PatternsDir) > 0 {
@@ -108,8 +111,7 @@ func (g *Grok) AddPattern(name, pattern string) error {
 	defer g.patternsGuard.Unlock()
 
 	g.rawPattern[name] = pattern
-	g.buildPatterns()
-	return nil
+	return g.buildPatterns()
 }
 
 // AddPatternsFromMap loads a map of named patterns
@@ -143,7 +145,10 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	}
 	order, _ := sortGraph(patternDeps)
 	for _, key := range reverseList(order) {
-		g.addPattern(key, m[key])
+		err := g.addPattern(key, m[key])
+		if err != nil {
+			return fmt.Errorf("cannot add pattern %q: %v", key, err)
+		}
 	}
 
 	return nil

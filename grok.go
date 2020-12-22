@@ -71,7 +71,10 @@ func NewWithConfig(config *Config) (*Grok, error) {
 	}
 
 	if !config.SkipDefaultPatterns {
-		g.AddPatternsFromMap(patterns)
+		err := g.AddPatternsFromMap(patterns)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if len(config.PatternsDir) > 0 {
@@ -108,8 +111,7 @@ func (g *Grok) AddPattern(name, pattern string) error {
 	defer g.patternsGuard.Unlock()
 
 	g.rawPattern[name] = pattern
-	g.buildPatterns()
-	return nil
+	return g.buildPatterns()
 }
 
 // AddPatternsFromMap loads a map of named patterns
@@ -143,7 +145,10 @@ func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	}
 	order, _ := sortGraph(patternDeps)
 	for _, key := range reverseList(order) {
-		g.addPattern(key, m[key])
+		err := g.addPattern(key, m[key])
+		if err != nil {
+			return fmt.Errorf("cannot add pattern %q: %v", key, err)
+		}
 	}
 
 	return nil
@@ -229,7 +234,7 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return g.compiledParse(gr, text)
 }
 
-// ParseTyped returns a inteface{} map with typed captured fields based on provided pattern over the text
+// ParseTyped returns a interface{} map with typed captured fields based on provided pattern over the text
 func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
 	gr, err := g.compile(pattern)
 	if err != nil {

@@ -130,7 +130,7 @@ func (g *Grok) AddPatternsFromMap(m map[string]string) error {
 func (g *Grok) addPatternsFromMap(m map[string]string) error {
 	patternDeps := graph{}
 	for k, v := range m {
-		keys := []string{}
+		var keys []string
 		for _, key := range normal.FindAllStringSubmatch(v, -1) {
 			if !valid.MatchString(key[1]) {
 				return fmt.Errorf("invalid pattern %%{%s}", key[1])
@@ -189,7 +189,7 @@ func (g *Grok) AddPatternsFromPath(path string) error {
 			}
 		}
 
-		file.Close()
+		_ = file.Close()
 	}
 
 	return g.AddPatternsFromMap(filePatterns)
@@ -372,7 +372,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 
 		//Merge type Informations
 		for k, v := range storedPattern.typeInfo {
-			//Lastest type information is the one to keep in memory
+			//Latest type information is the one to keep in memory
 			if _, ok := ti[k]; !ok {
 				ti[k] = v
 			}

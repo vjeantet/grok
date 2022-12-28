@@ -38,6 +38,7 @@ type Grok struct {
 	patterns         map[string]*gPattern
 	patternsGuard    *sync.RWMutex
 	compiledGuard    *sync.RWMutex
+	aliasGuard       *sync.RWMutex
 }
 
 type gPattern struct {
@@ -68,6 +69,7 @@ func NewWithConfig(config *Config) (*Grok, error) {
 		rawPattern:       map[string]string{},
 		patternsGuard:    new(sync.RWMutex),
 		compiledGuard:    new(sync.RWMutex),
+		aliasGuard:       new(sync.RWMutex),
 	}
 
 	if !config.SkipDefaultPatterns {
@@ -387,6 +389,8 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 
 func (g *Grok) aliasizePatternName(name string) string {
 	alias := symbolic.ReplaceAllString(name, "_")
+	g.aliasGuard.Lock()
+	defer g.aliasGuard.Unlock()
 	g.aliases[alias] = name
 	return alias
 }

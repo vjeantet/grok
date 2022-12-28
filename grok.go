@@ -396,6 +396,8 @@ func (g *Grok) aliasizePatternName(name string) string {
 }
 
 func (g *Grok) nameToAlias(name string) string {
+	g.aliasGuard.Lock()
+	defer g.aliasGuard.Unlock()
 	alias, ok := g.aliases[name]
 	if ok {
 		return alias

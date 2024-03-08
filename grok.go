@@ -11,12 +11,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"crypto/md5"
 )
 
 var (
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
-	symbolic = regexp.MustCompile(`\W`)
+	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:(([-.\w]+)|(\[\w+\])+)(:(string|float|int))?)?$`)
+	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.\[\]]+(?::[\w-.]+)?)?)}`)
+	nested   = regexp.MustCompile(`\[(\w+)\]`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -237,7 +238,8 @@ func (g *Grok) Parse(pattern, text string) (map[string]string, error) {
 	return g.compiledParse(gr, text)
 }
 
-// ParseTyped returns a interface{} map with typed captured fields based on provided pattern over the text
+// ParseTyped returns a interface{} map with typed captured fields based on provided pattern over the text.
+// Is able to return nested map[string]interface{} maps when %{PATTERN:[nested][field]} syntax is used.
 func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, error) {
 	gr, err := g.compile(pattern)
 	if err != nil {
@@ -252,17 +254,40 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 					continue
 				}
 				name := g.nameToAlias(segmentName)
+				nested_path := []string{}
+				nested_names := nested.FindAllStringSubmatch(name, -1)
+
+				if nested_names != nil {
+					for _, element := range nested_names {
+						nested_path = append(nested_path, element[1])
+					}
+				}
+
 				if segmentType, ok := gr.typeInfo[name]; ok {
 					switch segmentType {
 					case "int":
-						captures[name], _ = strconv.Atoi(match[i])
+						value, _ := strconv.Atoi(match[i])
+						if len(nested_path) > 0 {
+							addNested(captures, nested_path, value)
+						} else {
+							captures[name] = value
+						}
 					case "float":
-						captures[name], _ = strconv.ParseFloat(match[i], 64)
+						value, _ := strconv.ParseFloat(match[i], 64)
+						if len(nested_path) > 0 {
+							addNested(captures, nested_path, value)
+						} else {
+							captures[name] = value
+						}
 					default:
 						return nil, fmt.Errorf("ERROR the value %s cannot be converted to %s", match[i], segmentType)
 					}
 				} else {
-					captures[name] = match[i]
+					if len(nested_path) > 0 {
+						addNested(captures, nested_path, match[i])
+					} else {
+						captures[name] = match[i]
+					}
 				}
 			}
 
@@ -345,6 +370,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 			alias = g.aliasizePatternName(semantic)
 		}
 
+
 		// Add type cast information only if type set, and not string
 		if len(names) == 3 {
 			if names[2] != "string" {
@@ -386,7 +412,8 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 }
 
 func (g *Grok) aliasizePatternName(name string) string {
-	alias := symbolic.ReplaceAllString(name, "_")
+	d := []byte(name)
+	alias := fmt.Sprintf("h%x", md5.Sum(d) )
 	g.aliases[alias] = name
 	return alias
 }
@@ -422,4 +449,36 @@ func (g *Grok) ParseStream(reader *bufio.Reader, pattern string, process func(ma
 			return err
 		}
 	}
+}
+
+// adds a variable to a string keyed map going as deep as needed
+func addNested(n map[string]interface{}, path []string, value interface{}) error {
+	//pop path element => current element
+	element, path := path[0], path[1:]
+
+	//if this is the leaf element of the path
+	//just add it to the map
+	if len(path) == 0 {
+		n[element] = value
+		return nil
+	}
+
+	var childmap map[string]interface{}
+	var ismap bool
+
+	//check whether the current element already exists and is a map
+	child, exists := n[element]
+	if exists {
+		childmap, ismap = child.(map[string]interface{})
+		if !ismap { //in case the current element does exist but is not map it's not possible to walk down the path
+			return fmt.Errorf("Nesting under an already used key")
+		}
+	} else {
+		//in case the current element does NOT exist make a map
+		childmap = make(map[string]interface{})
+		n[element] = childmap
+	}
+
+	//and finally walk down the path recursively
+	return addNested(childmap, path, value)
 }

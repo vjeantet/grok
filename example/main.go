@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-
+	"encoding/json"
 	"github.com/vjeantet/grok"
 )
 
@@ -31,4 +31,11 @@ func main() {
 	for k, v := range values {
 		fmt.Printf("%+15s: %s\n", k, v)
 	}
+
+	fmt.Println("\n# Parse into a Nested map")
+	g, _ = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
+	nested_values,_ := g.ParseTyped("%{TIME:time_stamp}: %{USER:[name][first_name]} is %{POSINT:[person][age]:int} years old and %{NUMBER:[person][height]:float} meters tall",`12:23:31: bob is 23 years old and 4.2 meters tall`)
+
+	j, _ := json.MarshalIndent(nested_values, "", "\t")
+	fmt.Println(string(j))
 }

@@ -599,6 +599,32 @@ func TestParseTypedWithAlias(t *testing.T) {
 	}
 }
 
+func TestParseTypedWithNested(t *testing.T) {
+	g,_ := NewWithConfig(&Config{NamedCapturesOnly: true})
+        if captures, err := g.ParseTyped("%{TIMESTAMP_ISO8601:time} %{USER:[user][name]}@%{HOSTNAME:[user][host]} %{WORD:action} %{POSINT:[net][bytes]:int} bytes from %{IP:[net][source][ip]}:%{POSINT:[net][source][port]:int}","2023-04-08T11:55:00+0200 john.doe@example.com send 230 bytes from 198.51.100.65:2342"); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		expected := map[string]interface{}{
+			"time": "2023-04-08T11:55:00+0200",
+                        "action": "send",
+			"user": map[string]interface{}{
+				   "name": "john.doe",
+				   "host": "example.com",
+				},
+			"net": map[string]interface{}{
+				   "bytes": 230,
+                                   "source": map[string]interface{}{
+					"ip": "198.51.100.65",
+					"port": 2342,
+				   },
+				},
+		}
+		if fmt.Sprint(expected) != fmt.Sprint(captures) {
+			t.Fatalf("Expected nested map: %s got %s", expected, captures)
+		}
+	}
+}
+
 var resultNew *Grok
 
 func BenchmarkNew(b *testing.B) {

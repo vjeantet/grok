@@ -1,0 +1,481 @@
+goos: linux
+goarch: amd64
+pkg: github.com/vjeantet/grok
+cpu: Intel(R) Xeon(R) CPU @ 2.60GHz
+BenchmarkNew-16                  	    1143	    973729 ns/op	  543988 B/op	    3826 allocs/op
+BenchmarkCaptures-16             	   10000	    113797 ns/op	    4633 B/op	       7 allocs/op
+BenchmarkCapturesTypedFake-16    	   10000	    110262 ns/op	    4633 B/op	       7 allocs/op
+BenchmarkCapturesTypedReal-16    	    9793	    111008 ns/op	    4772 B/op	      16 allocs/op
+BenchmarkParallelCaptures-16     	fatal error: concurrent map writes
+
+goroutine 55 [running]:
+internal/runtime/maps.fatal({0x592286?, 0x5?})
+	/usr/local/go1.24.7/src/runtime/panic.go:1058 +0x18
+github.com/vjeantet/grok.(*Grok).aliasizePatternName(...)
+	/home/user/grok/grok.go:390
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:345 +0x265
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000280960)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 1 [chan receive]:
+testing.(*B).doBench(0xc00013a008)
+	/usr/local/go1.24.7/src/testing/benchmark.go:297 +0x78
+testing.(*benchState).processBench(0xc00000e300, 0x280?)
+	/usr/local/go1.24.7/src/testing/benchmark.go:747 +0x385
+testing.(*B).run(0xc00013a008?)
+	/usr/local/go1.24.7/src/testing/benchmark.go:288 +0x5b
+testing.(*B).Run(0xc00013a588, {0x593187?, 0x492a13?}, 0x59d730)
+	/usr/local/go1.24.7/src/testing/benchmark.go:848 +0x49f
+testing.runBenchmarks.func1(0xc00013a588)
+	/usr/local/go1.24.7/src/testing/benchmark.go:708 +0x37
+testing.(*B).runN(0xc00013a588, 0x1)
+	/usr/local/go1.24.7/src/testing/benchmark.go:219 +0x190
+testing.runBenchmarks({0x592d97, 0x18}, 0x0?, {0x6cbd80, 0x5, 0x7?})
+	/usr/local/go1.24.7/src/testing/benchmark.go:717 +0x5f6
+testing.(*M).Run(0xc000108b40)
+	/usr/local/go1.24.7/src/testing/testing.go:2158 +0x9b6
+main.main()
+	_testmain.go:143 +0x9b
+
+goroutine 97 [sync.WaitGroup.Wait]:
+sync.runtime_SemacquireWaitGroup(0xc0004002d0?)
+	/usr/local/go1.24.7/src/runtime/sema.go:110 +0x25
+sync.(*WaitGroup).Wait(0x0?)
+	/usr/local/go1.24.7/src/sync/waitgroup.go:118 +0x48
+testing.(*B).RunParallel(0xc00013a008, 0xc000408010)
+	/usr/local/go1.24.7/src/testing/benchmark.go:965 +0x1af
+github.com/vjeantet/grok.BenchmarkParallelCaptures(0xc00013a008)
+	/home/user/grok/grok_test.go:650 +0x89
+testing.(*B).runN(0xc00013a008, 0x64)
+	/usr/local/go1.24.7/src/testing/benchmark.go:219 +0x190
+testing.(*B).launch(0xc00013a008)
+	/usr/local/go1.24.7/src/testing/benchmark.go:354 +0x1bc
+created by testing.(*B).doBench in goroutine 1
+	/usr/local/go1.24.7/src/testing/benchmark.go:296 +0x65
+
+goroutine 53 [semacquire]:
+internal/bytealg.MakeNoZero(0x5d1)
+	/usr/local/go1.24.7/src/runtime/slice.go:400 +0xdc
+strings.(*Builder).grow(0xc00030cc90, 0xc00039fd25?)
+	/usr/local/go1.24.7/src/strings/builder.go:61 +0x25
+strings.(*Builder).Grow(0xc00039f800?, 0x473229?)
+	/usr/local/go1.24.7/src/strings/builder.go:75 +0x50
+strings.Replace({0xc00039f800, 0x5c2}, {0x59c324, 0xc}, {0xc00030cd30, 0x1b}, 0xffffffffffffffff)
+	/usr/local/go1.24.7/src/strings/strings.go:1155 +0x11c
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:381 +0xe5
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc0003809e0)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 54 [stopping the world]:
+internal/runtime/maps.newarray(0x20?, 0x57edc0?)
+	/usr/local/go1.24.7/src/runtime/malloc.go:1800 +0x13
+internal/runtime/maps.newGroups(...)
+	/usr/local/go1.24.7/src/internal/runtime/maps/group.go:310
+internal/runtime/maps.(*table).reset(0xc000484380, 0x568d40, 0x10)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:104 +0x3d
+internal/runtime/maps.newTable(0x568d40, 0x10, 0x0, 0x0)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:95 +0x8f
+internal/runtime/maps.(*Map).growToTable(0xc0005d5170, 0x568d40)
+	/usr/local/go1.24.7/src/internal/runtime/maps/map.go:601 +0x2d
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da460, 0x0?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:253 +0x1a5
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da4d0, 0x88?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:229 +0x25a
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da310, 0x30?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:224 +0x13f
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da540, 0x14?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:239 +0xc5
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da850, 0x30?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:229 +0x25a
+regexp/syntax.(*parser).calcSize(0xc0004d6000, 0xc0004da2a0, 0xe8?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:224 +0x13f
+regexp/syntax.(*parser).checkSize(0x582f00?, 0xc0004de140?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:206 +0x108
+regexp/syntax.(*parser).checkSize(0x4edac5?, 0xc0004e8230)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:202 +0x13a
+regexp/syntax.(*parser).checkLimits(0xc0004d6000, 0xc0004e8230)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:165 +0x27
+regexp/syntax.(*parser).push(0xc0004d6000, 0xc0004e8230)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:325 +0x2e5
+regexp/syntax.(*parser).concat(0xc0004d6000)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:492 +0x148
+regexp/syntax.(*parser).parseRightParen(0xc0004d6000)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:1411 +0x1c
+regexp/syntax.parse({0xc0004d5000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:947 +0x49b
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc0004d5000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000484000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 56 [semacquire]:
+internal/runtime/maps.newarray(0x20?, 0x57edc0?)
+	/usr/local/go1.24.7/src/runtime/malloc.go:1800 +0x13
+internal/runtime/maps.newGroups(...)
+	/usr/local/go1.24.7/src/internal/runtime/maps/group.go:310
+internal/runtime/maps.(*table).reset(0xc000280940, 0x568d40, 0x400)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:104 +0x3d
+internal/runtime/maps.newTable(0x568d40, 0x400, 0x0, 0x0)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:95 +0x8f
+internal/runtime/maps.(*table).grow(0xc000280620, 0x568d40, 0xc00027e030, 0x17?)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:1092 +0x37
+internal/runtime/maps.(*table).rehash(0xc0002f7340?, 0xc000491cb8?, 0xc0002ff3b0?)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:1027 +0x25
+regexp/syntax.(*parser).calcSize(0xc0002d4000, 0xc0002ff650, 0x0?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:253 +0x1a5
+regexp/syntax.(*parser).checkSize(0xc0002ff650?, 0xc000205cb0?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:206 +0x108
+regexp/syntax.(*parser).checkLimits(0xc0002d4000, 0xc0002ff650)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:165 +0x27
+regexp/syntax.(*parser).push(0xc0002d4000, 0xc0002ff650)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:325 +0x2e5
+regexp/syntax.(*parser).literal(0xc0002d4000, 0x3a)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:375 +0x125
+regexp/syntax.parse({0xc0002d3000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:930 +0xbd1
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc0002d3000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000280000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 57 [semacquire]:
+internal/bytealg.MakeNoZero(0x5d1)
+	/usr/local/go1.24.7/src/runtime/slice.go:400 +0xdc
+strings.(*Builder).grow(0xc000308c90, 0xc00042dd25?)
+	/usr/local/go1.24.7/src/strings/builder.go:61 +0x25
+strings.(*Builder).Grow(0xc00042d800?, 0x473229?)
+	/usr/local/go1.24.7/src/strings/builder.go:75 +0x50
+strings.Replace({0xc00042d800, 0x5c2}, {0x59c324, 0xc}, {0xc000308d30, 0x1b}, 0xffffffffffffffff)
+	/usr/local/go1.24.7/src/strings/strings.go:1155 +0x11c
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:381 +0xe5
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc0004028c0)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 58 [semacquire]:
+regexp/syntax.(*parser).newRegexp(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:146
+regexp/syntax.(*parser).collapse(0xc000434000, {0xc00043e0e8, 0x3, 0xc000434000?}, 0x12)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:552 +0xee
+regexp/syntax.(*parser).concat(0xc000434000)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:492 +0x13b
+regexp/syntax.(*parser).parseVerticalBar(0xc000434000)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:1330 +0x18
+regexp/syntax.parse({0xc000433000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:944 +0xb5a
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc000433000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000402000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 59 [semacquire]:
+internal/bytealg.MakeNoZero(0x5d1)
+	/usr/local/go1.24.7/src/runtime/slice.go:400 +0xdc
+strings.(*Builder).grow(0xc0001e8c90, 0xc00021fd25?)
+	/usr/local/go1.24.7/src/strings/builder.go:61 +0x25
+strings.(*Builder).Grow(0xc00021f800?, 0x473229?)
+	/usr/local/go1.24.7/src/strings/builder.go:75 +0x50
+strings.Replace({0xc00021f800, 0x5c2}, {0x59c324, 0xc}, {0xc0001e8d30, 0x1b}, 0xffffffffffffffff)
+	/usr/local/go1.24.7/src/strings/strings.go:1155 +0x11c
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:381 +0xe5
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000200c60)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 60 [semacquire]:
+regexp/syntax.(*parser).newRegexp(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:146
+regexp/syntax.(*parser).repeat(0xc000226000, 0x10, 0x0, 0x0, {0xc00022570e, 0xb8}, {0xc00022570f?, 0x6?}, {0x0, 0x0})
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:426 +0x2e5
+regexp/syntax.parse({0xc000225000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:987 +0xaa5
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc000225000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000200000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 61 [semacquire]:
+bytes.(*Buffer).String(...)
+	/usr/local/go1.24.7/src/bytes/buffer.go:71
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:381 +0xb3
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc0000ffcc0)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 62 [runnable]:
+regexp.(*bitState).reset(0xc00069e000, 0xc00010ae10?, 0xcc?, 0x4)
+	/usr/local/go1.24.7/src/regexp/backtrack.go:98 +0x167
+regexp.(*Regexp).backtrack(0xc000108960, {0x0, 0x0, 0x0}, {0x59c301, 0xcc}, 0x0, 0x4, {0x6f1340, 0x0, ...})
+	/usr/local/go1.24.7/src/regexp/backtrack.go:317 +0x19f
+regexp.(*Regexp).doExecute(0x41758b?, {0x0, 0x0}, {0x0, 0x0, 0x0}, {0x59c301, 0xcc}, 0x0, 0x4, ...)
+	/usr/local/go1.24.7/src/regexp/exec.go:535 +0x272
+regexp.(*Regexp).allMatches(0xc000108960, {0x59c301, 0xcc}, {0x0, 0x0, 0x0}, 0xcd, 0xc00069bc98)
+	/usr/local/go1.24.7/src/regexp/regexp.go:778 +0x131
+regexp.(*Regexp).FindAllStringSubmatch(0xffffffffffffffff?, {0x59c301?, 0xffffffffffffffff?}, 0xffffffffffffffff?)
+	/usr/local/go1.24.7/src/regexp/regexp.go:1196 +0x65
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:336 +0x70
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000692000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 63 [semacquire]:
+regexp.(*Regexp).FindAllStringSubmatch.func1({0xc0001fd880, 0x4, 0x0?})
+	/usr/local/go1.24.7/src/regexp/regexp.go:1200 +0xa7
+regexp.(*Regexp).allMatches(0xc000108960, {0x59c301, 0xcc}, {0x0, 0x0, 0x0}, 0xcd, 0xc0001edc98)
+	/usr/local/go1.24.7/src/regexp/regexp.go:810 +0x2d5
+regexp.(*Regexp).FindAllStringSubmatch(0x0?, {0x59c301?, 0x0?}, 0x0?)
+	/usr/local/go1.24.7/src/regexp/regexp.go:1196 +0x65
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:336 +0x70
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc0000ffe40)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 64 [runnable]:
+internal/runtime/maps.newarray(0x20?, 0x57edc0?)
+	/usr/local/go1.24.7/src/runtime/malloc.go:1800 +0x13
+internal/runtime/maps.newGroups(...)
+	/usr/local/go1.24.7/src/internal/runtime/maps/group.go:310
+internal/runtime/maps.(*table).reset(0xc000274620, 0x568d40, 0x200)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:104 +0x3d
+internal/runtime/maps.newTable(0x568d40, 0x200, 0x0, 0x0)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:95 +0x8f
+internal/runtime/maps.(*table).grow(0xc000274460, 0x568d40, 0xc00010aba0, 0x76c2?)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:1092 +0x37
+internal/runtime/maps.(*table).rehash(0xc000364770?, 0xc00030fc00?, 0x4ed33a?)
+	/usr/local/go1.24.7/src/internal/runtime/maps/table.go:1027 +0x25
+regexp/syntax.(*parser).calcSize(0xc00033a000, 0xc0003647e0, 0x70?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:253 +0x1a5
+regexp/syntax.(*parser).checkSize(0x582f00?, 0x4f2d01?)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:206 +0x108
+regexp/syntax.(*parser).checkLimits(0xc00033a000, 0xc0003647e0)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:165 +0x27
+regexp/syntax.(*parser).repeat(0xc00033a000, 0x11, 0x1, 0x4, {0xc0003391e8, 0x5de}, {0xc0003391ed?, 0x6?}, {0x0, 0x0})
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:433 +0x3e5
+regexp/syntax.parse({0xc000339000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:1006 +0xccf
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc000339000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000274000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 113 [semacquire]:
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:957 +0x72
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 114 [semacquire]:
+regexp/syntax.(*parser).push(0xc0003a6000, 0xc0003e5dc0)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:324 +0x288
+regexp/syntax.parse({0xc0003a5000, 0x7c6}, 0xd4)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:1070 +0x908
+regexp/syntax.Parse(...)
+	/usr/local/go1.24.7/src/regexp/syntax/parse.go:887
+regexp.compile({0xc0003a5000, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:168 +0x30
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000380000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 115 [runnable]:
+regexp.(*bitState).reset(0xc000588000, 0xc00010ae10?, 0xcc?, 0x4)
+	/usr/local/go1.24.7/src/regexp/backtrack.go:98 +0x167
+regexp.(*Regexp).backtrack(0xc000108960, {0x0, 0x0, 0x0}, {0x59c301, 0xcc}, 0x0, 0x4, {0x6f1340, 0x0, ...})
+	/usr/local/go1.24.7/src/regexp/backtrack.go:317 +0x19f
+regexp.(*Regexp).doExecute(0x41758b?, {0x0, 0x0}, {0x0, 0x0, 0x0}, {0x59c301, 0xcc}, 0x0, 0x4, ...)
+	/usr/local/go1.24.7/src/regexp/exec.go:535 +0x272
+regexp.(*Regexp).allMatches(0xc000108960, {0x59c301, 0xcc}, {0x0, 0x0, 0x0}, 0xcd, 0xc000609c98)
+	/usr/local/go1.24.7/src/regexp/regexp.go:778 +0x131
+regexp.(*Regexp).FindAllStringSubmatch(0x0?, {0x59c301?, 0x0?}, 0x0?)
+	/usr/local/go1.24.7/src/regexp/regexp.go:1196 +0x65
+github.com/vjeantet/grok.(*Grok).denormalizePattern(0xc000112040, {0x59c301, 0xcc}, 0xc0005d4030)
+	/home/user/grok/grok.go:336 +0x70
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:315 +0xfb
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc000584000)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+
+goroutine 116 [semacquire]:
+regexp/syntax.(*Regexp).Simplify(0xc000153880)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:26 +0x475
+regexp/syntax.(*Regexp).Simplify(0xc00013fe30)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001538f0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00013f9d0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc000153a40)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00013f570)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc000153b20)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00013f1f0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001b8770)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00012c310)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001b8a80)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00012c2a0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001b9dc0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00012c150)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001ba1c0)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc00012c070)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp/syntax.(*Regexp).Simplify(0xc0001c6700)
+	/usr/local/go1.24.7/src/regexp/syntax/simplify.go:23 +0x434
+regexp.compile({0xc0001b4800, 0x7c6}, 0xcc?, 0x0)
+	/usr/local/go1.24.7/src/regexp/regexp.go:175 +0x6d
+regexp.Compile(...)
+	/usr/local/go1.24.7/src/regexp/regexp.go:131
+github.com/vjeantet/grok.(*Grok).compile(0xc000112040, {0x59c301, 0xcc})
+	/home/user/grok/grok.go:321 +0x176
+github.com/vjeantet/grok.(*Grok).Parse(0xc000112040, {0x59c301?, 0x414ee5?}, {0x59b836, 0x4c})
+	/home/user/grok/grok.go:232 +0x27
+github.com/vjeantet/grok.BenchmarkParallelCaptures.func1(0xc0000fee20)
+	/home/user/grok/grok_test.go:652 +0x46
+testing.(*B).RunParallel.func1()
+	/usr/local/go1.24.7/src/testing/benchmark.go:962 +0xb8
+created by testing.(*B).RunParallel in goroutine 97
+	/usr/local/go1.24.7/src/testing/benchmark.go:955 +0x116
+exit status 2
+FAIL	github.com/vjeantet/grok	4.636s

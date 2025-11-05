@@ -1,0 +1,11 @@
+goos: linux
+goarch: amd64
+pkg: github.com/vjeantet/grok
+cpu: Intel(R) Xeon(R) CPU @ 2.60GHz
+BenchmarkNew-16                  	    1555	    727809 ns/op	  300724 B/op	    2873 allocs/op
+BenchmarkCaptures-16             	    9630	    110843 ns/op	    8660 B/op	       6 allocs/op
+BenchmarkCapturesTypedFake-16    	   10000	    110094 ns/op	    8656 B/op	       6 allocs/op
+BenchmarkCapturesTypedReal-16    	   10000	    113051 ns/op	    8861 B/op	      15 allocs/op
+BenchmarkParallelCaptures-16     	   64636	     15577 ns/op	   10277 B/op	       7 allocs/op
+PASS
+ok  	github.com/vjeantet/grok	5.739s

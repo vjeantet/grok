@@ -1,7 +1,7 @@
 [![Go Reference](https://pkg.go.dev/badge/github.com/vjeantet/grok.svg)](https://pkg.go.dev/github.com/vjeantet/grok)
 [![Build Status](https://travis-ci.org/vjeantet/grok.svg)](https://travis-ci.org/vjeantet/grok)
-[![Coverage Status](https://coveralls.io/repos/vjeantet/grok/badge.png?branch=master)](https://coveralls.io/r/vjeantet/grok?branch=master)
-[![Go Report Card](http://goreportcard.com/badge/vjeantet/grok)](http:/goreportcard.com/report/vjeantet/grok)
+[![Coverage Status](https://coveralls.io/repos/github/vjeantet/grok/badge.svg)](https://coveralls.io/github/vjeantet/grok)
+[![Go Report Card](https://goreportcard.com/badge/github.com/vjeantet/grok)](https://goreportcard.com/report/github.com/vjeantet/grok)
 [![Documentation Status](https://readthedocs.org/projects/grok-lib-for-golang/badge/?version=latest)](https://readthedocs.org/projects/grok-lib-for-golang/?badge=latest)
 
 

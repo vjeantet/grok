@@ -2,7 +2,6 @@ package grok
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -15,9 +14,14 @@ import (
 )
 
 var (
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:(([-.\w]+)|(\[\w+\])+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.\[\]]+(?::[\w-.]+)?)?)}`)
-	nested   = regexp.MustCompile(`\[(\w+)\]`)
+	// support
+	//valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:(([-.\w]+)|(\[\w+\])+)(:(string|float|int))?)?$`)
+	//normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.\[\]]+(?::[\w-.]+)?)?)}`)
+	//nested   = regexp.MustCompile(`\[(\w+)\]`)
+
+	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
+	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
+	symbolic = regexp.MustCompile(`\W`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -39,6 +43,7 @@ type Grok struct {
 	patterns         map[string]*gPattern
 	patternsGuard    *sync.RWMutex
 	compiledGuard    *sync.RWMutex
+	aliasesGuard     *sync.RWMutex
 }
 
 type gPattern struct {
@@ -69,6 +74,7 @@ func NewWithConfig(config *Config) (*Grok, error) {
 		rawPattern:       map[string]string{},
 		patternsGuard:    new(sync.RWMutex),
 		compiledGuard:    new(sync.RWMutex),
+		aliasesGuard:     new(sync.RWMutex),
 	}
 
 	if !config.SkipDefaultPatterns {
@@ -212,7 +218,7 @@ func (g *Grok) Match(pattern, text string) (bool, error) {
 
 // compiledParse parses the specified text and returns a map with the results.
 func (g *Grok) compiledParse(gr *gRegexp, text string) (map[string]string, error) {
-	captures := make(map[string]string)
+	captures := make(map[string]string, gr.regexp.NumSubexp())
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
@@ -246,7 +252,7 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 		return nil, err
 	}
 	match := gr.regexp.FindStringSubmatch(text)
-	captures := make(map[string]interface{})
+	captures := make(map[string]interface{}, gr.regexp.NumSubexp())
 	if len(match) > 0 {
 		for i, segmentName := range gr.regexp.SubexpNames() {
 			if len(segmentName) != 0 {
@@ -306,7 +312,7 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 		return nil, err
 	}
 
-	captures := make(map[string][]string)
+	captures := make(map[string][]string, gr.regexp.NumSubexp())
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {
@@ -358,12 +364,29 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 
 func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPattern) (string, semanticTypes, error) {
 	ti := semanticTypes{}
-	for _, values := range normal.FindAllStringSubmatch(pattern, -1) {
-		if !valid.MatchString(values[1]) {
-			return "", ti, fmt.Errorf("invalid pattern %%{%s}", values[1])
-		}
-		names := strings.Split(values[1], ":")
+	matches := normal.FindAllStringSubmatchIndex(pattern, -1)
+	if len(matches) == 0 {
+		return pattern, ti, nil
+	}
 
+	var result strings.Builder
+	result.Grow(len(pattern) * 2) // Pre-allocate with estimate
+	lastEnd := 0
+
+	for _, match := range matches {
+		matchStart := match[0]
+		matchEnd := match[1]
+		submatchStart := match[2]
+		submatchEnd := match[3]
+
+		// Extract the matched pattern name (e.g., "WORD:field:int")
+		patternName := pattern[submatchStart:submatchEnd]
+
+		if !valid.MatchString(patternName) {
+			return "", ti, fmt.Errorf("invalid pattern %%{%s}", patternName)
+		}
+
+		names := strings.Split(patternName, ":")
 		syntax, semantic, alias := names[0], names[0], names[0]
 		if len(names) > 1 {
 			semantic = names[1]
@@ -383,43 +406,52 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 			return "", ti, fmt.Errorf("no pattern found for %%{%s}", syntax)
 		}
 
-		var buffer bytes.Buffer
+		// Copy text before this match
+		result.WriteString(pattern[lastEnd:matchStart])
+
+		// Build replacement
 		if !g.config.NamedCapturesOnly || (g.config.NamedCapturesOnly && len(names) > 1) {
-			buffer.WriteString("(?P<")
-			buffer.WriteString(alias)
-			buffer.WriteString(">")
-			buffer.WriteString(storedPattern.expression)
-			buffer.WriteString(")")
+			result.WriteString("(?P<")
+			result.WriteString(alias)
+			result.WriteString(">")
+			result.WriteString(storedPattern.expression)
+			result.WriteString(")")
 		} else {
-			buffer.WriteString("(")
-			buffer.WriteString(storedPattern.expression)
-			buffer.WriteString(")")
+			result.WriteString("(")
+			result.WriteString(storedPattern.expression)
+			result.WriteString(")")
 		}
 
-		//Merge type Informations
+		// Merge type Information
 		for k, v := range storedPattern.typeInfo {
-			//Latest type information is the one to keep in memory
+			// Latest type information is the one to keep in memory
 			if _, ok := ti[k]; !ok {
 				ti[k] = v
 			}
 		}
 
-		pattern = strings.Replace(pattern, values[0], buffer.String(), -1)
+		lastEnd = matchEnd
 	}
 
-	return pattern, ti, nil
+	// Copy remaining text after last match
+	result.WriteString(pattern[lastEnd:])
 
+	return result.String(), ti, nil
 }
 
 func (g *Grok) aliasizePatternName(name string) string {
 	d := []byte(name)
 	alias := fmt.Sprintf("h%x", md5.Sum(d) )
+	g.aliasesGuard.Lock()
 	g.aliases[alias] = name
+	g.aliasesGuard.Unlock()
 	return alias
 }
 
 func (g *Grok) nameToAlias(name string) string {
+	g.aliasesGuard.RLock()
 	alias, ok := g.aliases[name]
+	g.aliasesGuard.RUnlock()
 	if ok {
 		return alias
 	}

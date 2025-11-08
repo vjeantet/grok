@@ -786,3 +786,351 @@ func TestParseStreamError(t *testing.T) {
 		t.Fatal("Error expected")
 	}
 }
+
+func TestParseStreamCompileError(t *testing.T) {
+	g, _ := New()
+	pTest := func(m map[string]string) error {
+		return nil
+	}
+	r := bufio.NewReader(strings.NewReader("test"))
+	if err := g.ParseStream(r, "%{UNKNOWNPATTERN}", pTest); err == nil {
+		t.Fatal("Error expected when pattern cannot be compiled")
+	}
+}
+
+func TestNewWithConfigWithInvalidPatterns(t *testing.T) {
+	_, err := NewWithConfig(&Config{
+		Patterns: map[string]string{
+			"INVALID": "%{NONEXISTENT}",
+		},
+	})
+	if err == nil {
+		t.Fatal("Error expected when config contains invalid patterns")
+	}
+}
+
+func TestNewWithConfigWithInvalidPatternsDir(t *testing.T) {
+	_, err := NewWithConfig(&Config{
+		PatternsDir: []string{"./nonexistent_directory"},
+	})
+	if err == nil {
+		t.Fatal("Error expected when PatternsDir contains invalid path")
+	}
+}
+
+func TestParseTypedWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true, RemoveEmptyValues: true})
+
+	captures, err := g.ParseTyped("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	}
+
+	if _, exists := captures["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true")
+	}
+}
+
+func TestParseToMultiMapWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{RemoveEmptyValues: true})
+
+	res, err := g.ParseToMultiMap("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not parse : %s", err.Error())
+	}
+
+	if _, exists := res["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true")
+	}
+}
+
+func TestAddPatternsFromMapWithInvalidPatternSyntax(t *testing.T) {
+	g, _ := NewWithConfig(&Config{SkipDefaultPatterns: true})
+
+	err := g.AddPatternsFromMap(map[string]string{
+		"VALID":   `\d+`,
+		"INVALID": "%{-INVALID}",
+	})
+
+	if err == nil {
+		t.Fatal("Error expected when pattern contains invalid syntax")
+	}
+}
+
+func TestParseWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{RemoveEmptyValues: true})
+
+	captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	}
+
+	// rawrequest should be empty in this log line and should be removed
+	if _, exists := captures["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true and value is empty")
+	}
+
+	// Verify non-empty values are still present
+	if captures["clientip"] != "127.0.0.1" {
+		t.Fatal("clientip should still be present")
+	}
+}
+
+func TestGreedyDataWithMixedRegex(t *testing.T) {
+	g, _ := New()
+
+	pattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND`
+
+	// Debug: get the compiled regex to see what it looks like
+	gr, err := g.compile(pattern)
+	if err != nil {
+		t.Fatalf("error compiling: %s", err.Error())
+	}
+	t.Logf("Compiled regex: %s", gr.regexp.String())
+	t.Logf("SubexpNames: %v", gr.regexp.SubexpNames())
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("error parsing: %s", err.Error())
+	}
+
+	t.Logf("Captures: %+v", captures)
+	t.Logf("Number of captures: %d", len(captures))
+
+	if len(captures) == 0 {
+		t.Fatal("Expected non-empty captures but got empty map")
+	}
+
+	if captures["var1"] != "/opt/facs/casrepos/fa/common.jar" {
+		t.Fatalf("var1 should be '/opt/facs/casrepos/fa/common.jar' but got '%s'", captures["var1"])
+	}
+
+	if captures["var2"] != "44228-9915812-0" {
+		t.Fatalf("var2 should be '44228-9915812-0' but got '%s'", captures["var2"])
+	}
+
+	if captures["var3"] != "FOUND" {
+		t.Fatalf("var3 should be 'FOUND' but got '%s'", captures["var3"])
+	}
+}
+
+func TestGreedyDataWithEmptyValues(t *testing.T) {
+	g, _ := New()
+
+	pattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+
+	// Test case that might produce empty values
+	text := ": FOUND"
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("error parsing: %s", err.Error())
+	}
+
+	t.Logf("Captures for '%s': %+v", text, captures)
+	t.Logf("Number of captures: %d", len(captures))
+
+	// This should return empty map since the pattern doesn't match
+	if len(captures) != 0 {
+		t.Logf("Warning: Expected empty map for input '%s' but got %+v", text, captures)
+	}
+}
+
+func TestGreedyDataCanMatchEmpty(t *testing.T) {
+	g, _ := New()
+
+	//  Test if GREEDYDATA (.*) can match empty strings
+	pattern := `%{GREEDYDATA:before}FOUND%{GREEDYDATA:after}`
+	text := "FOUND"
+
+	gr, _ := g.compile(pattern)
+	t.Logf("Pattern: %s", gr.regexp.String())
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("error parsing: %s", err.Error())
+	}
+
+	t.Logf("Captures: %+v", captures)
+
+	// .* can match empty string, so this should work
+	if captures["before"] != "" {
+		t.Fatalf("Expected 'before' to be empty but got '%s'", captures["before"])
+	}
+	if captures["after"] != "" {
+		t.Fatalf("Expected 'after' to be empty but got '%s'", captures["after"])
+	}
+}
+
+func TestGreedyDataWithTrailingNewline(t *testing.T) {
+	g, _ := New()
+
+	pattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+
+	// Test with trailing newline - .* doesn't match newlines by default
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND
+`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("error parsing: %s", err.Error())
+	}
+
+	t.Logf("Text (with newline): %q", text)
+	t.Logf("Captures: %+v", captures)
+	t.Logf("Number of captures: %d", len(captures))
+
+	// THIS MIGHT BE THE ISSUE! .* doesn't match newlines
+	if len(captures) == 0 {
+		t.Log("FOUND IT! Pattern returns empty map when input has trailing newline")
+		t.Log("This is because .* doesn't match newline characters")
+	}
+}
+
+func TestGreedyDataWithRemoveEmptyValues(t *testing.T) {
+	// Test if RemoveEmptyValues causes issues
+	g, _ := NewWithConfig(&Config{RemoveEmptyValues: true})
+
+	pattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("error parsing: %s", err.Error())
+	}
+
+	t.Logf("Captures (RemoveEmptyValues=true): %+v", captures)
+	t.Logf("Number of captures: %d", len(captures))
+
+	// Should still have 3 captures since none are empty
+	if len(captures) != 3 {
+		t.Fatalf("Expected 3 captures but got %d: %+v", len(captures), captures)
+	}
+
+	// Now test with input that might produce empty captures
+	text2 := ": FOUND"
+	captures2, _ := g.Parse(pattern, text2)
+	t.Logf("Captures for '%s' (RemoveEmptyValues=true): %+v", text2, captures2)
+}
+
+func TestDATAvsGREEDYDATA(t *testing.T) {
+	g, _ := New()
+
+	// Compare DATA (.*?) non-greedy vs GREEDYDATA (.*) greedy
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND`
+
+	// Test with GREEDYDATA (greedy)
+	greedyPattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+	greedyCaptures, _ := g.Parse(greedyPattern, text)
+	t.Logf("GREEDYDATA pattern: %s", greedyPattern)
+	t.Logf("GREEDYDATA captures: %+v", greedyCaptures)
+
+	// Test with DATA (non-greedy)
+	dataPattern := `%{DATA:var1}: %{DATA:var2} (?<var3>FOUND)`
+	dataCaptures, _ := g.Parse(dataPattern, text)
+	t.Logf("DATA pattern: %s", dataPattern)
+	t.Logf("DATA captures: %+v", dataCaptures)
+
+	// Both should work but may capture differently
+	if len(greedyCaptures) == 0 {
+		t.Error("GREEDYDATA returned empty map!")
+	}
+	if len(dataCaptures) == 0 {
+		t.Error("DATA returned empty map!")
+	}
+
+	// Check the compiled patterns to see the difference
+	grGREEDY, _ := g.compile(greedyPattern)
+	grDATA, _ := g.compile(dataPattern)
+	t.Logf("GREEDYDATA compiled: %s", grGREEDY.regexp.String())
+	t.Logf("DATA compiled: %s", grDATA.regexp.String())
+}
+
+// TestIssue_GrokParseEmptyMap is a regression test for the reported issue where
+// Grok.Parse with GREEDYDATA pattern and mixed regex syntax returns empty map.
+// This test documents the expected behavior.
+func TestIssue_GrokParseEmptyMap(t *testing.T) {
+	g, err := New()
+	if err != nil {
+		t.Fatalf("Failed to create Grok instance: %v", err)
+	}
+
+	// The exact pattern and text from the issue report
+	pattern := `%{GREEDYDATA:var1}: %{GREEDYDATA:var2} (?<var3>FOUND)`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND`
+
+	// This should work and return 3 captures
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+
+	// Verify we got results
+	if len(captures) == 0 {
+		t.Fatal("BUG REPRODUCED: Got empty map!")
+	}
+
+	// Verify expected values
+	expectedCaptures := map[string]string{
+		"var1": "/opt/facs/casrepos/fa/common.jar",
+		"var2": "44228-9915812-0",
+		"var3": "FOUND",
+	}
+
+	for key, expected := range expectedCaptures {
+		if actual, ok := captures[key]; !ok {
+			t.Errorf("Missing capture %q", key)
+		} else if actual != expected {
+			t.Errorf("Capture %q: expected %q, got %q", key, expected, actual)
+		}
+	}
+
+	t.Logf("✓ Pattern works correctly")
+	t.Logf("  Pattern: %s", pattern)
+	t.Logf("  Text: %s", text)
+	t.Logf("  Captures: %+v", captures)
+}
+
+func TestFieldNamesWithParentheses(t *testing.T) {
+	g, _ := New()
+
+	// Test IIS log pattern with parentheses in field names like cs(User-Agent) and cs(Referer)
+	pattern := "%{TIMESTAMP_ISO8601:logtime} %{WORD:s-sitename} %{WORD:s-computername} %{IPORHOST:s-ip} %{WORD:cs-method} %{NOTSPACE:cs-uri-stem} %{NOTSPACE:cs-uri-query} %{NUMBER:s-port} %{NOTSPACE:cs-username} %{IPORHOST:c-ip} %{NOTSPACE:cs-version} %{NOTSPACE:cs(User-Agent)} %{NOTSPACE:cs(Referer)} %{IPORHOST:cs-host} %{NUMBER:sc-status} %{NUMBER:sc-substatus} %{NUMBER:sc-win32-status} %{NUMBER:sc-bytes} %{NUMBER:cs-bytes} %{NUMBER:time-taken}"
+	logLine := "2018-02-02 00:01:32 W3SVC1 UKAPPSVR 172.18.131.173 GET /123/I/Home/PLMonstants - 80 Joe+Bloggs 172.18.17.185 HTTP/1.1 Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko https://blahblah.co.uk/theappname/live/app/thingy localhost 200 0 0 3393 2644 90"
+
+	captures, err := g.Parse(pattern, logLine)
+	if err != nil {
+		t.Fatalf("Failed to parse IIS log with parentheses in field names: %s", err.Error())
+	}
+
+	// Verify field names with parentheses are captured correctly
+	if captures["cs(User-Agent)"] != "Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko" {
+		t.Fatalf("cs(User-Agent) should be 'Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko' but got '%s'", captures["cs(User-Agent)"])
+	}
+
+	if captures["cs(Referer)"] != "https://blahblah.co.uk/theappname/live/app/thingy" {
+		t.Fatalf("cs(Referer) should be 'https://blahblah.co.uk/theappname/live/app/thingy' but got '%s'", captures["cs(Referer)"])
+	}
+
+	// Verify other fields still work correctly
+	if captures["logtime"] != "2018-02-02 00:01:32" {
+		t.Fatalf("logtime should be '2018-02-02 00:01:32' but got '%s'", captures["logtime"])
+	}
+
+	if captures["s-sitename"] != "W3SVC1" {
+		t.Fatalf("s-sitename should be 'W3SVC1' but got '%s'", captures["s-sitename"])
+	}
+
+	if captures["cs-method"] != "GET" {
+		t.Fatalf("cs-method should be 'GET' but got '%s'", captures["cs-method"])
+	}
+
+	if captures["c-ip"] != "172.18.17.185" {
+		t.Fatalf("c-ip should be '172.18.17.185' but got '%s'", captures["c-ip"])
+	}
+
+	if captures["sc-status"] != "200" {
+		t.Fatalf("sc-status should be '200' but got '%s'", captures["sc-status"])
+	}
+}

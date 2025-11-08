@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
+	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.()\w]+)(:(string|float|int))?)?$`)
+	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.()]+(?::[\w-.()]+)?)?)}`)
 	symbolic = regexp.MustCompile(`\W`)
 )
 

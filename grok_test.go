@@ -1065,3 +1065,46 @@ func TestIssue_GrokParseEmptyMap(t *testing.T) {
 	t.Logf("  Text: %s", text)
 	t.Logf("  Captures: %+v", captures)
 }
+
+func TestFieldNamesWithParentheses(t *testing.T) {
+	g, _ := New()
+
+	// Test IIS log pattern with parentheses in field names like cs(User-Agent) and cs(Referer)
+	pattern := "%{TIMESTAMP_ISO8601:logtime} %{WORD:s-sitename} %{WORD:s-computername} %{IPORHOST:s-ip} %{WORD:cs-method} %{NOTSPACE:cs-uri-stem} %{NOTSPACE:cs-uri-query} %{NUMBER:s-port} %{NOTSPACE:cs-username} %{IPORHOST:c-ip} %{NOTSPACE:cs-version} %{NOTSPACE:cs(User-Agent)} %{NOTSPACE:cs(Referer)} %{IPORHOST:cs-host} %{NUMBER:sc-status} %{NUMBER:sc-substatus} %{NUMBER:sc-win32-status} %{NUMBER:sc-bytes} %{NUMBER:cs-bytes} %{NUMBER:time-taken}"
+	logLine := "2018-02-02 00:01:32 W3SVC1 UKAPPSVR 172.18.131.173 GET /123/I/Home/PLMonstants - 80 Joe+Bloggs 172.18.17.185 HTTP/1.1 Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko https://blahblah.co.uk/theappname/live/app/thingy localhost 200 0 0 3393 2644 90"
+
+	captures, err := g.Parse(pattern, logLine)
+	if err != nil {
+		t.Fatalf("Failed to parse IIS log with parentheses in field names: %s", err.Error())
+	}
+
+	// Verify field names with parentheses are captured correctly
+	if captures["cs(User-Agent)"] != "Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko" {
+		t.Fatalf("cs(User-Agent) should be 'Mozilla/5.0+(Windows+NT+6.1;+Trident/7.0;+rv:11.0)+like+Gecko' but got '%s'", captures["cs(User-Agent)"])
+	}
+
+	if captures["cs(Referer)"] != "https://blahblah.co.uk/theappname/live/app/thingy" {
+		t.Fatalf("cs(Referer) should be 'https://blahblah.co.uk/theappname/live/app/thingy' but got '%s'", captures["cs(Referer)"])
+	}
+
+	// Verify other fields still work correctly
+	if captures["logtime"] != "2018-02-02 00:01:32" {
+		t.Fatalf("logtime should be '2018-02-02 00:01:32' but got '%s'", captures["logtime"])
+	}
+
+	if captures["s-sitename"] != "W3SVC1" {
+		t.Fatalf("s-sitename should be 'W3SVC1' but got '%s'", captures["s-sitename"])
+	}
+
+	if captures["cs-method"] != "GET" {
+		t.Fatalf("cs-method should be 'GET' but got '%s'", captures["cs-method"])
+	}
+
+	if captures["c-ip"] != "172.18.17.185" {
+		t.Fatalf("c-ip should be '172.18.17.185' but got '%s'", captures["c-ip"])
+	}
+
+	if captures["sc-status"] != "200" {
+		t.Fatalf("sc-status should be '200' but got '%s'", captures["sc-status"])
+	}
+}

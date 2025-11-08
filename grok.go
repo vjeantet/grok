@@ -2,6 +2,7 @@ package grok
 
 import (
 	"bufio"
+	"crypto/md5"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"crypto/md5"
 )
 
 var (
@@ -19,9 +19,9 @@ var (
 	//normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.\[\]]+(?::[\w-.]+)?)?)}`)
 	//nested   = regexp.MustCompile(`\[(\w+)\]`)
 
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
-	symbolic = regexp.MustCompile(`\W`)
+	valid  = regexp.MustCompile(`^\w+([-.]\w+)*(:(([-.()\w]+)|(\[\w+\])+)(:(string|float|int))?)?$`)
+	normal = regexp.MustCompile(`%{([\w-.]+(?::[\w-.()\[\]]+(?::[\w-.()]+)?)?)}`)
+	nested = regexp.MustCompile(`\[(\w+)\]`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -393,7 +393,6 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 			alias = g.aliasizePatternName(semantic)
 		}
 
-
 		// Add type cast information only if type set, and not string
 		if len(names) == 3 {
 			if names[2] != "string" {
@@ -441,7 +440,7 @@ func (g *Grok) denormalizePattern(pattern string, storedPatterns map[string]*gPa
 
 func (g *Grok) aliasizePatternName(name string) string {
 	d := []byte(name)
-	alias := fmt.Sprintf("h%x", md5.Sum(d) )
+	alias := fmt.Sprintf("h%x", md5.Sum(d))
 	g.aliasesGuard.Lock()
 	g.aliases[alias] = name
 	g.aliasesGuard.Unlock()

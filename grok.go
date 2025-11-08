@@ -271,7 +271,8 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 		}
 	}
 
-	return captures, nil
+	// Convert flat map with bracket notation to nested map structure
+	return flatToNested(captures), nil
 }
 
 // ParseToMultiMap parses the specified text and returns a map with the
@@ -474,6 +475,112 @@ func (g *Grok) normalizeNativeCaptures(pattern string) string {
 	result.WriteString(pattern[lastEnd:])
 
 	return result.String()
+}
+
+// parseBracketNotation parses bracket notation like "[field1][field2]" into path ["field1", "field2"]
+// Returns nil if the key doesn't use bracket notation
+func parseBracketNotation(key string) []string {
+	if !strings.HasPrefix(key, "[") {
+		return nil
+	}
+
+	var path []string
+	var current strings.Builder
+	inBracket := false
+
+	for _, ch := range key {
+		switch ch {
+		case '[':
+			if inBracket {
+				// Malformed - nested brackets
+				return nil
+			}
+			inBracket = true
+			current.Reset()
+		case ']':
+			if !inBracket {
+				// Malformed - closing bracket without opening
+				return nil
+			}
+			if current.Len() > 0 {
+				path = append(path, current.String())
+			}
+			inBracket = false
+		default:
+			if inBracket {
+				current.WriteRune(ch)
+			} else {
+				// Characters outside brackets - malformed
+				return nil
+			}
+		}
+	}
+
+	if inBracket {
+		// Unclosed bracket
+		return nil
+	}
+
+	if len(path) == 0 {
+		return nil
+	}
+
+	return path
+}
+
+// setNestedValue sets a value in a nested map structure given a path
+func setNestedValue(target map[string]interface{}, path []string, value interface{}) {
+	if len(path) == 0 {
+		return
+	}
+
+	if len(path) == 1 {
+		target[path[0]] = value
+		return
+	}
+
+	// Navigate/create nested structure
+	key := path[0]
+	remaining := path[1:]
+
+	nested, exists := target[key]
+	if !exists {
+		// Create new nested map
+		newMap := make(map[string]interface{})
+		target[key] = newMap
+		setNestedValue(newMap, remaining, value)
+		return
+	}
+
+	// Check if existing value is a map
+	nestedMap, ok := nested.(map[string]interface{})
+	if !ok {
+		// Conflict: existing value is not a map, overwrite it
+		newMap := make(map[string]interface{})
+		target[key] = newMap
+		setNestedValue(newMap, remaining, value)
+		return
+	}
+
+	setNestedValue(nestedMap, remaining, value)
+}
+
+// flatToNested converts a flat map with bracket notation keys to a nested map structure
+func flatToNested(flat map[string]interface{}) map[string]interface{} {
+	nested := make(map[string]interface{})
+
+	for key, value := range flat {
+		path := parseBracketNotation(key)
+		if path != nil {
+			// Key uses bracket notation - create nested structure
+			setNestedValue(nested, path, value)
+		} else {
+			// Regular key - set directly
+			nested[key] = value
+		}
+	}
+
+	return nested
 }
 
 // ParseStream will match the given pattern on a line by line basis from the reader

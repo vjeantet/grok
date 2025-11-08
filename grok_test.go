@@ -1209,12 +1209,23 @@ func TestNestedFieldsTyped(t *testing.T) {
 		t.Fatalf("Failed to parse nested fields with types: %s", err.Error())
 	}
 
-	if captures["[server][port]"] != 8080 {
-		t.Fatalf("[server][port] should be 8080 but got %v", captures["[server][port]"])
+	// ParseTyped returns nested maps
+	server, ok := captures["server"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("server should be a nested map but got %T", captures["server"])
 	}
 
-	if captures["[stats][count]"] != 123.45 {
-		t.Fatalf("[stats][count] should be 123.45 but got %v", captures["[stats][count]"])
+	if server["port"] != 8080 {
+		t.Fatalf("server.port should be 8080 but got %v", server["port"])
+	}
+
+	stats, ok := captures["stats"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("stats should be a nested map but got %T", captures["stats"])
+	}
+
+	if stats["count"] != 123.45 {
+		t.Fatalf("stats.count should be 123.45 but got %v", stats["count"])
 	}
 }
 
@@ -1240,5 +1251,31 @@ func TestNestedFieldsToMultiMap(t *testing.T) {
 
 	if captures["[field][nested]"][1] != "second" {
 		t.Fatalf("[field][nested][1] should be 'second' but got '%s'", captures["[field][nested]"][1])
+	}
+}
+
+func TestParseTypedWithNested(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.ParseTyped("%{TIMESTAMP_ISO8601:time} %{USER:[user][name]}@%{HOSTNAME:[user][host]} %{WORD:action} %{POSINT:[net][bytes]:int} bytes from %{IP:[net][source][ip]}:%{POSINT:[net][source][port]:int}", "2023-04-08T11:55:00+0200 john.doe@example.com send 230 bytes from 198.51.100.65:2342"); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		expected := map[string]interface{}{
+			"time":   "2023-04-08T11:55:00+0200",
+			"action": "send",
+			"user": map[string]interface{}{
+				"name": "john.doe",
+				"host": "example.com",
+			},
+			"net": map[string]interface{}{
+				"bytes": 230,
+				"source": map[string]interface{}{
+					"ip":   "198.51.100.65",
+					"port": 2342,
+				},
+			},
+		}
+		if fmt.Sprint(expected) != fmt.Sprint(captures) {
+			t.Fatalf("Expected nested map: %s got %s", expected, captures)
+		}
 	}
 }

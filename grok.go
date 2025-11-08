@@ -13,10 +13,17 @@ import (
 )
 
 var (
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
-	symbolic = regexp.MustCompile(`\W`)
+	valid       = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.\w]+)(:(string|float|int))?)?$`)
+	normal      = regexp.MustCompile(`%{([\w-.]+(?::[\w-.]+(?::[\w-.]+)?)?)}`)
+	symbolic    = regexp.MustCompile(`\W`)
+	perlNamedRe = regexp.MustCompile(`\(\?<([^>]+)>`)
 )
+
+// convertPerlNamedGroups converts Perl-style named groups (?<name>...) to Go-style (?P<name>...)
+// Go's regexp package only supports (?P<name>...) syntax for named groups
+func convertPerlNamedGroups(pattern string) string {
+	return perlNamedRe.ReplaceAllString(pattern, "(?P<$1>")
+}
 
 // A Config structure is used to configure a Grok parser.
 type Config struct {
@@ -318,6 +325,9 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Convert Perl-style named groups (?<name>) to Go-style (?P<name>)
+	newPattern = convertPerlNamedGroups(newPattern)
 
 	compiledRegex, err := regexp.Compile(newPattern)
 	if err != nil {

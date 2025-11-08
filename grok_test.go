@@ -849,3 +849,94 @@ func TestParseWithRemoveEmptyValues(t *testing.T) {
 		t.Fatal("clientip should still be present")
 	}
 }
+
+func TestConvertPerlNamedGroups(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    `(?<name>\w+)`,
+			expected: `(?P<name>\w+)`,
+		},
+		{
+			input:    `(?<first>\w+) (?<second>\d+)`,
+			expected: `(?P<first>\w+) (?P<second>\d+)`,
+		},
+		{
+			input:    `(?<timestamp>%{YEAR}-%{MONTHNUM}-%{MONTHDAY})`,
+			expected: `(?P<timestamp>%{YEAR}-%{MONTHNUM}-%{MONTHDAY})`,
+		},
+		{
+			// Pattern already in Go style should remain unchanged
+			input:    `(?P<name>\w+)`,
+			expected: `(?P<name>\w+)`,
+		},
+		{
+			// Pattern without named groups should remain unchanged
+			input:    `\w+ \d+`,
+			expected: `\w+ \d+`,
+		},
+	}
+
+	for i, tt := range tests {
+		result := convertPerlNamedGroups(tt.input)
+		if result != tt.expected {
+			t.Errorf("Test %d failed: convertPerlNamedGroups(%q) = %q, want %q",
+				i, tt.input, result, tt.expected)
+		}
+	}
+}
+
+func TestPerlStyleNamedGroups(t *testing.T) {
+	g, err := New()
+	if err != nil {
+		t.Fatalf("Failed to create grok instance: %s", err.Error())
+	}
+
+	// Test with Perl-style named groups (?<name>...)
+	// This syntax is used in Logstash and other grok implementations
+	pattern := `(?<loglevel>[A-Z]+) (?<message>.*)`
+	text := `ERROR Something went wrong`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse pattern with Perl-style named groups: %s", err.Error())
+	}
+
+	if captures["loglevel"] != "ERROR" {
+		t.Fatalf("Expected loglevel to be 'ERROR', got '%s'", captures["loglevel"])
+	}
+
+	if captures["message"] != "Something went wrong" {
+		t.Fatalf("Expected message to be 'Something went wrong', got '%s'", captures["message"])
+	}
+}
+
+func TestPerlStyleNamedGroupsWithGrokPatterns(t *testing.T) {
+	g, err := New()
+	if err != nil {
+		t.Fatalf("Failed to create grok instance: %s", err.Error())
+	}
+
+	// Test mixed Perl-style named groups with Grok patterns
+	pattern := `(?<timestamp>%{YEAR}-%{MONTHNUM}-%{MONTHDAY} %{TIME}) (?<level>%{LOGLEVEL}) %{GREEDYDATA:message}`
+	text := `2025-11-08 14:30:45 ERROR Database connection failed`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse mixed pattern: %s", err.Error())
+	}
+
+	if captures["timestamp"] != "2025-11-08 14:30:45" {
+		t.Fatalf("Expected timestamp to be '2025-11-08 14:30:45', got '%s'", captures["timestamp"])
+	}
+
+	if captures["level"] != "ERROR" {
+		t.Fatalf("Expected level to be 'ERROR', got '%s'", captures["level"])
+	}
+
+	if captures["message"] != "Database connection failed" {
+		t.Fatalf("Expected message to be 'Database connection failed', got '%s'", captures["message"])
+	}
+}

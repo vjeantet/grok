@@ -38,6 +38,7 @@ type Grok struct {
 	patterns         map[string]*gPattern
 	patternsGuard    *sync.RWMutex
 	compiledGuard    *sync.RWMutex
+	aliasesGuard     *sync.RWMutex
 }
 
 type gPattern struct {
@@ -68,6 +69,7 @@ func NewWithConfig(config *Config) (*Grok, error) {
 		rawPattern:       map[string]string{},
 		patternsGuard:    new(sync.RWMutex),
 		compiledGuard:    new(sync.RWMutex),
+		aliasesGuard:     new(sync.RWMutex),
 	}
 
 	if !config.SkipDefaultPatterns {
@@ -244,7 +246,7 @@ func (g *Grok) ParseTyped(pattern string, text string) (map[string]interface{}, 
 		return nil, err
 	}
 	match := gr.regexp.FindStringSubmatch(text)
-	captures := make(map[string]interface{})
+	captures := make(map[string]interface{}, gr.regexp.NumSubexp())
 	if len(match) > 0 {
 		for i, segmentName := range gr.regexp.SubexpNames() {
 			if len(segmentName) != 0 {
@@ -281,7 +283,7 @@ func (g *Grok) ParseToMultiMap(pattern, text string) (map[string][]string, error
 		return nil, err
 	}
 
-	captures := make(map[string][]string)
+	captures := make(map[string][]string, gr.regexp.NumSubexp())
 	if match := gr.regexp.FindStringSubmatch(text); len(match) > 0 {
 		for i, name := range gr.regexp.SubexpNames() {
 			if name != "" {

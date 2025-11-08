@@ -23,6 +23,9 @@ _testmain.go
 *.test
 *.prof
 *.cov
+coverage.out
+coverage*.out
+coverage.html
 .coveralls.yml
 # added by GitSavvy
 .DS_Store

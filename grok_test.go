@@ -760,3 +760,92 @@ func TestParseStreamError(t *testing.T) {
 		t.Fatal("Error expected")
 	}
 }
+
+func TestParseStreamCompileError(t *testing.T) {
+	g, _ := New()
+	pTest := func(m map[string]string) error {
+		return nil
+	}
+	r := bufio.NewReader(strings.NewReader("test"))
+	if err := g.ParseStream(r, "%{UNKNOWNPATTERN}", pTest); err == nil {
+		t.Fatal("Error expected when pattern cannot be compiled")
+	}
+}
+
+func TestNewWithConfigWithInvalidPatterns(t *testing.T) {
+	_, err := NewWithConfig(&Config{
+		Patterns: map[string]string{
+			"INVALID": "%{NONEXISTENT}",
+		},
+	})
+	if err == nil {
+		t.Fatal("Error expected when config contains invalid patterns")
+	}
+}
+
+func TestNewWithConfigWithInvalidPatternsDir(t *testing.T) {
+	_, err := NewWithConfig(&Config{
+		PatternsDir: []string{"./nonexistent_directory"},
+	})
+	if err == nil {
+		t.Fatal("Error expected when PatternsDir contains invalid path")
+	}
+}
+
+func TestParseTypedWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true, RemoveEmptyValues: true})
+
+	captures, err := g.ParseTyped("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	}
+
+	if _, exists := captures["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true")
+	}
+}
+
+func TestParseToMultiMapWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{RemoveEmptyValues: true})
+
+	res, err := g.ParseToMultiMap("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not parse : %s", err.Error())
+	}
+
+	if _, exists := res["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true")
+	}
+}
+
+func TestAddPatternsFromMapWithInvalidPatternSyntax(t *testing.T) {
+	g, _ := NewWithConfig(&Config{SkipDefaultPatterns: true})
+
+	err := g.AddPatternsFromMap(map[string]string{
+		"VALID":   `\d+`,
+		"INVALID": "%{-INVALID}",
+	})
+
+	if err == nil {
+		t.Fatal("Error expected when pattern contains invalid syntax")
+	}
+}
+
+func TestParseWithRemoveEmptyValues(t *testing.T) {
+	g, _ := NewWithConfig(&Config{RemoveEmptyValues: true})
+
+	captures, err := g.Parse("%{COMMONAPACHELOG}", `127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP/1.1" 404 207`)
+	if err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	}
+
+	// rawrequest should be empty in this log line and should be removed
+	if _, exists := captures["rawrequest"]; exists {
+		t.Fatal("rawrequest should not exist when RemoveEmptyValues is true and value is empty")
+	}
+
+	// Verify non-empty values are still present
+	if captures["clientip"] != "127.0.0.1" {
+		t.Fatal("clientip should still be present")
+	}
+}

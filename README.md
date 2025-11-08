@@ -121,3 +121,36 @@ COMMONAPACHELOG: 127.0.0.1 - - [23/Apr/2014:22:58:32 +0200] "GET /index.php HTTP
        clientip: 127.0.0.1
           ident: -
 ```
+
+# Example 3 - nested
+```go
+package main
+
+import (
+	"fmt"
+	"encoding/json"
+	"github.com/vjeantet/grok"
+)
+
+func main() {
+	g, _ = grok.NewWithConfig(&grok.Config{NamedCapturesOnly: true})
+	nested_values,_ := g.ParseTyped("%{TIME:time_stamp}: %{USER:[name][first_name]} is %{POSINT:[person][age]:int} years old and %{NUMBER:[person][height]:float} meters tall",`12:23:31: bob is 23 years old and 4.2 meters tall`)
+
+	j, _ := json.MarshalIndent(nested_values, "", "\t")
+	fmt.Println(string(j))
+}
+```
+
+output:
+```
+{
+	"name": {
+		"first_name": "bob"
+	},
+	"person": {
+		"age": 23,
+		"height": 4.2
+	},
+	"time_stamp": "12:23:31"
+}
+```

@@ -599,6 +599,32 @@ func TestParseTypedWithAlias(t *testing.T) {
 	}
 }
 
+func TestParseTypedWithNested(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+	if captures, err := g.ParseTyped("%{TIMESTAMP_ISO8601:time} %{USER:[user][name]}@%{HOSTNAME:[user][host]} %{WORD:action} %{POSINT:[net][bytes]:int} bytes from %{IP:[net][source][ip]}:%{POSINT:[net][source][port]:int}", "2023-04-08T11:55:00+0200 john.doe@example.com send 230 bytes from 198.51.100.65:2342"); err != nil {
+		t.Fatalf("error can not capture : %s", err.Error())
+	} else {
+		expected := map[string]interface{}{
+			"time":   "2023-04-08T11:55:00+0200",
+			"action": "send",
+			"user": map[string]interface{}{
+				"name": "john.doe",
+				"host": "example.com",
+			},
+			"net": map[string]interface{}{
+				"bytes": 230,
+				"source": map[string]interface{}{
+					"ip":   "198.51.100.65",
+					"port": 2342,
+				},
+			},
+		}
+		if fmt.Sprint(expected) != fmt.Sprint(captures) {
+			t.Fatalf("Expected nested map: %s got %s", expected, captures)
+		}
+	}
+}
+
 var resultNew *Grok
 
 func BenchmarkNew(b *testing.B) {
@@ -758,6 +784,105 @@ func TestParseStreamError(t *testing.T) {
 	r := bufio.NewReader(strings.NewReader(testLog))
 	if err := g.ParseStream(r, "%{COMMONAPACHELOG}", pTest); err == nil {
 		t.Fatal("Error expected")
+	}
+}
+
+func TestNestedFieldsWithBrackets(t *testing.T) {
+	g, _ := New()
+
+	// Test nested field notation using brackets
+	pattern := `%{GREEDYDATA:[field1][nestedField1]}: %{GREEDYDATA:[field2][nestedField2]}`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with nested field brackets: %s", err.Error())
+	}
+
+	if captures["[field1][nestedField1]"] != "/opt/facs/casrepos/fa/common.jar" {
+		t.Fatalf("[field1][nestedField1] should be '/opt/facs/casrepos/fa/common.jar' but got '%s'", captures["[field1][nestedField1]"])
+	}
+
+	if captures["[field2][nestedField2]"] != "44228-9915812-0" {
+		t.Fatalf("[field2][nestedField2] should be '44228-9915812-0' but got '%s'", captures["[field2][nestedField2]"])
+	}
+}
+
+func TestNestedFieldsMultipleLevels(t *testing.T) {
+	g, _ := New()
+
+	// Test multiple levels of nesting
+	pattern := `%{WORD:[level1][level2][level3]}: %{NUMBER:[a][b][c][d]}`
+	text := `test: 12345`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with multiple nesting levels: %s", err.Error())
+	}
+
+	if captures["[level1][level2][level3]"] != "test" {
+		t.Fatalf("[level1][level2][level3] should be 'test' but got '%s'", captures["[level1][level2][level3]"])
+	}
+
+	if captures["[a][b][c][d]"] != "12345" {
+		t.Fatalf("[a][b][c][d] should be '12345' but got '%s'", captures["[a][b][c][d]"])
+	}
+}
+
+func TestNestedFieldsTyped(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+
+	// Test nested fields with type coercion
+	pattern := `%{NUMBER:[server][port]:int} %{NUMBER:[stats][count]:float}`
+	text := `8080 123.45`
+
+	captures, err := g.ParseTyped(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse nested fields with types: %s", err.Error())
+	}
+
+	// ParseTyped returns nested maps
+	server, ok := captures["server"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("server should be a nested map but got %T", captures["server"])
+	}
+
+	if server["port"] != 8080 {
+		t.Fatalf("server.port should be 8080 but got %v", server["port"])
+	}
+
+	stats, ok := captures["stats"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("stats should be a nested map but got %T", captures["stats"])
+	}
+
+	if stats["count"] != 123.45 {
+		t.Fatalf("stats.count should be 123.45 but got %v", stats["count"])
+	}
+}
+
+func TestNestedFieldsToMultiMap(t *testing.T) {
+	g, _ := New()
+
+	// Test nested fields with ParseToMultiMap
+	pattern := `%{WORD:[field][nested]} %{WORD:[field][nested]}`
+	text := `first second`
+
+	captures, err := g.ParseToMultiMap(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse nested fields to multimap: %s", err.Error())
+	}
+
+	if len(captures["[field][nested]"]) != 2 {
+		t.Fatalf("[field][nested] should have 2 values but got %d", len(captures["[field][nested]"]))
+	}
+
+	if captures["[field][nested]"][0] != "first" {
+		t.Fatalf("[field][nested][0] should be 'first' but got '%s'", captures["[field][nested]"][0])
+	}
+
+	if captures["[field][nested]"][1] != "second" {
+		t.Fatalf("[field][nested][1] should be 'second' but got '%s'", captures["[field][nested]"][1])
 	}
 }
 

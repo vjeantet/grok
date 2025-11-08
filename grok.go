@@ -13,9 +13,10 @@ import (
 )
 
 var (
-	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.()\w]+)(:(string|float|int))?)?$`)
-	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.()]+(?::[\w-.()]+)?)?)}`)
+	valid    = regexp.MustCompile(`^\w+([-.]\w+)*(:([-.()\[\]\w]+)(:(string|float|int))?)?$`)
+	normal   = regexp.MustCompile(`%{([\w-.]+(?::[\w-.()[\]]+(?::[\w-.()[\]]+)?)?)}`)
 	symbolic = regexp.MustCompile(`\W`)
+	nativeCapture = regexp.MustCompile(`\(\?<([^>]+)>`)
 )
 
 // A Config structure is used to configure a Grok parser.
@@ -312,8 +313,11 @@ func (g *Grok) compile(pattern string) (*gRegexp, error) {
 		return gr, nil
 	}
 
+	// Normalize native regex captures with bracket notation
+	normalizedPattern := g.normalizeNativeCaptures(pattern)
+
 	g.patternsGuard.RLock()
-	newPattern, ti, err := g.denormalizePattern(pattern, g.patterns)
+	newPattern, ti, err := g.denormalizePattern(normalizedPattern, g.patterns)
 	g.patternsGuard.RUnlock()
 	if err != nil {
 		return nil, err
@@ -424,6 +428,52 @@ func (g *Grok) nameToAlias(name string) string {
 		return alias
 	}
 	return name
+}
+
+// normalizeNativeCaptures processes native regex named groups to handle bracket notation
+// Converts (?<[field][nested]>...) to (?<valid_identifier>...) and stores the mapping
+func (g *Grok) normalizeNativeCaptures(pattern string) string {
+	matches := nativeCapture.FindAllStringSubmatchIndex(pattern, -1)
+	if len(matches) == 0 {
+		return pattern
+	}
+
+	var result strings.Builder
+	result.Grow(len(pattern))
+	lastEnd := 0
+
+	for _, match := range matches {
+		// match[0], match[1] = full match positions
+		// match[2], match[3] = capture group name positions
+		nameStart := match[2]
+		nameEnd := match[3]
+		originalName := pattern[nameStart:nameEnd]
+
+		// Check if name contains brackets
+		if strings.ContainsAny(originalName, "[]") {
+			// Aliassize the name (replace non-word chars with underscores)
+			alias := g.aliasizePatternName(originalName)
+
+			// Copy text before this match
+			result.WriteString(pattern[lastEnd:match[0]])
+
+			// Write normalized capture group
+			result.WriteString("(?<")
+			result.WriteString(alias)
+			result.WriteString(">")
+
+			lastEnd = match[1]
+		} else {
+			// No brackets, copy as-is up to and including this match
+			result.WriteString(pattern[lastEnd:match[1]])
+			lastEnd = match[1]
+		}
+	}
+
+	// Copy remaining text after last match
+	result.WriteString(pattern[lastEnd:])
+
+	return result.String()
 }
 
 // ParseStream will match the given pattern on a line by line basis from the reader

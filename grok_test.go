@@ -1108,3 +1108,137 @@ func TestFieldNamesWithParentheses(t *testing.T) {
 		t.Fatalf("sc-status should be '200' but got '%s'", captures["sc-status"])
 	}
 }
+
+func TestNestedFieldsWithBrackets(t *testing.T) {
+	g, _ := New()
+
+	// Test nested field notation using brackets
+	pattern := `%{GREEDYDATA:[field1][nestedField1]}: %{GREEDYDATA:[field2][nestedField2]}`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with nested field brackets: %s", err.Error())
+	}
+
+	if captures["[field1][nestedField1]"] != "/opt/facs/casrepos/fa/common.jar" {
+		t.Fatalf("[field1][nestedField1] should be '/opt/facs/casrepos/fa/common.jar' but got '%s'", captures["[field1][nestedField1]"])
+	}
+
+	if captures["[field2][nestedField2]"] != "44228-9915812-0" {
+		t.Fatalf("[field2][nestedField2] should be '44228-9915812-0' but got '%s'", captures["[field2][nestedField2]"])
+	}
+}
+
+func TestNestedFieldsWithNativeRegex(t *testing.T) {
+	g, _ := New()
+
+	// Test native regex syntax with bracket notation
+	pattern := `(?<[field1][nested1]>\S+): (?<[field2][nested2]>\S+)`
+	text := `/opt/facs/common.jar: 12345`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with native regex bracket notation: %s", err.Error())
+	}
+
+	if captures["[field1][nested1]"] != "/opt/facs/common.jar" {
+		t.Fatalf("[field1][nested1] should be '/opt/facs/common.jar' but got '%s'", captures["[field1][nested1]"])
+	}
+
+	if captures["[field2][nested2]"] != "12345" {
+		t.Fatalf("[field2][nested2] should be '12345' but got '%s'", captures["[field2][nested2]"])
+	}
+}
+
+func TestNestedFieldsMixed(t *testing.T) {
+	g, _ := New()
+
+	// Test mixed syntax - Grok patterns with brackets and native regex with brackets
+	pattern := `%{GREEDYDATA:[field1][nestedField1]}: %{GREEDYDATA:[field2][nestedField2]} (?<[field3][nestedField3]>FOUND)`
+	text := `/opt/facs/casrepos/fa/common.jar: 44228-9915812-0 FOUND`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with mixed bracket notation: %s", err.Error())
+	}
+
+	if captures["[field1][nestedField1]"] != "/opt/facs/casrepos/fa/common.jar" {
+		t.Fatalf("[field1][nestedField1] should be '/opt/facs/casrepos/fa/common.jar' but got '%s'", captures["[field1][nestedField1]"])
+	}
+
+	if captures["[field2][nestedField2]"] != "44228-9915812-0" {
+		t.Fatalf("[field2][nestedField2] should be '44228-9915812-0' but got '%s'", captures["[field2][nestedField2]"])
+	}
+
+	if captures["[field3][nestedField3]"] != "FOUND" {
+		t.Fatalf("[field3][nestedField3] should be 'FOUND' but got '%s'", captures["[field3][nestedField3]"])
+	}
+}
+
+func TestNestedFieldsMultipleLevels(t *testing.T) {
+	g, _ := New()
+
+	// Test multiple levels of nesting
+	pattern := `%{WORD:[level1][level2][level3]}: %{NUMBER:[a][b][c][d]}`
+	text := `test: 12345`
+
+	captures, err := g.Parse(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse with multiple nesting levels: %s", err.Error())
+	}
+
+	if captures["[level1][level2][level3]"] != "test" {
+		t.Fatalf("[level1][level2][level3] should be 'test' but got '%s'", captures["[level1][level2][level3]"])
+	}
+
+	if captures["[a][b][c][d]"] != "12345" {
+		t.Fatalf("[a][b][c][d] should be '12345' but got '%s'", captures["[a][b][c][d]"])
+	}
+}
+
+func TestNestedFieldsTyped(t *testing.T) {
+	g, _ := NewWithConfig(&Config{NamedCapturesOnly: true})
+
+	// Test nested fields with type coercion
+	pattern := `%{NUMBER:[server][port]:int} %{NUMBER:[stats][count]:float}`
+	text := `8080 123.45`
+
+	captures, err := g.ParseTyped(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse nested fields with types: %s", err.Error())
+	}
+
+	if captures["[server][port]"] != 8080 {
+		t.Fatalf("[server][port] should be 8080 but got %v", captures["[server][port]"])
+	}
+
+	if captures["[stats][count]"] != 123.45 {
+		t.Fatalf("[stats][count] should be 123.45 but got %v", captures["[stats][count]"])
+	}
+}
+
+func TestNestedFieldsToMultiMap(t *testing.T) {
+	g, _ := New()
+
+	// Test nested fields with ParseToMultiMap
+	pattern := `%{WORD:[field][nested]} %{WORD:[field][nested]}`
+	text := `first second`
+
+	captures, err := g.ParseToMultiMap(pattern, text)
+	if err != nil {
+		t.Fatalf("Failed to parse nested fields to multimap: %s", err.Error())
+	}
+
+	if len(captures["[field][nested]"]) != 2 {
+		t.Fatalf("[field][nested] should have 2 values but got %d", len(captures["[field][nested]"]))
+	}
+
+	if captures["[field][nested]"][0] != "first" {
+		t.Fatalf("[field][nested][0] should be 'first' but got '%s'", captures["[field][nested]"][0])
+	}
+
+	if captures["[field][nested]"][1] != "second" {
+		t.Fatalf("[field][nested][1] should be 'second' but got '%s'", captures["[field][nested]"][1])
+	}
+}

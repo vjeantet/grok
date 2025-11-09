@@ -440,6 +440,13 @@ func TestCapturesAndNamedCapture(t *testing.T) {
 	check("BASE10NUM", `1`, "%{BASE10NUM}", `1`) // this is a nice one
 	check("BASE10NUM", `8080`, "%{BASE10NUM}", `qsfd8080qsfd`)
 
+	//CLOUDFRONT
+	cf_log := "2017-01-01 00:38:23 DEE50 30609 66.81.46.575 GET gdfgd242.cloudfront.net /ee/jquery.min.js 200 https://test.org/ Mozilla/5.0 (Linux; Android 5.1; XT1526 Build/LPI23.29-18-S.11) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.93 Mobile Safari/537.36 - - Hit NjK22JT44gv2HLyIEuXObZJfMuny9n_sheCpSSTKpo2mw0ZRVjr7rQ== test.org https 371 0.023 - TLSv1.2 ECDHE-RSA-AES128-GCM-SHA256 Hit HTTP/1.1"
+	cf_pattern := "%{YEAR:year}-%{MONTHNUM:month}-%{MONTHDAY:day}%{SPACE}%{TIME:time}%{SPACE}(?<x_edge_location>\\b\\w+\\b)%{SPACE}(?:%{NUMBER:sc_bytes}|-)%{SPACE}%{IPORHOST:clientip}%{SPACE}%{WORD:cs_method}%{SPACE}%{HOSTNAME:cs_host}%{SPACE}%{NOTSPACE:cs_uri_stem}%{SPACE}%{NUMBER:sc_status}%{SPACE}%{URI:referrer}%{SPACE}%{GREEDYDATA:agent}%{SPACE}%{GREEDYDATA:cs_uri_query}%{SPACE}%{GREEDYDATA:cookies}%{SPACE}%{WORD:x_edge_result_type}%{SPACE}%{NOTSPACE:x_edge_request_id}%{SPACE}%{HOSTNAME:x_host_header}%{SPACE}%{GREEDYDATA:cs_protocol}%{SPACE}%{INT:cs_bytes}%{SPACE}%{GREEDYDATA:time_taken}%{SPACE}%{GREEDYDATA:x_forwarded_for}%{SPACE}%{GREEDYDATA:ssl_protocol}%{SPACE}%{GREEDYDATA:ssl_cipher}%{SPACE}%{GREEDYDATA:x_edge_response_result_type}%{SPACE}%{GREEDYDATA:cs_protocol_version}"
+	checkNamed("year", "2017", cf_pattern, cf_log)
+	checkNamed("x_edge_location", "DEE50", cf_pattern, cf_log)
+	checkNamed("clientip", "66.81.46.575", cf_pattern, cf_log)
+	checkNamed("referrer", "https://test.org/", cf_pattern, cf_log)
 }
 
 // Should be run with -race

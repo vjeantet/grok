@@ -165,3 +165,5 @@ BenchmarkCapturesTypedFake-14              21933             54395 ns/op        
 BenchmarkCapturesTypedReal-14              21448             55301 ns/op            8811 B/op         15 allocs/op
 BenchmarkParallelCaptures-14              130564              8752 ns/op            9289 B/op          6 allocs/op
 ```
+
+Using `gr.regexp.NumSubexp()` when allocating maps, doubles B/op (bytes per op) but reduces allocation count and produces faster captures.  

@@ -154,3 +154,14 @@ output:
 	"time_stamp": "12:23:31"
 }
 ```
+
+# Benchmarks
+```go test -bench=. -benchmem -run=^$ 2>&1```
+
+```text
+BenchmarkNew-14                             3985            293890 ns/op          313601 B/op       2879 allocs/op
+BenchmarkCaptures-14                       22515             53376 ns/op            8562 B/op          6 allocs/op
+BenchmarkCapturesTypedFake-14              21933             54395 ns/op            8614 B/op          6 allocs/op
+BenchmarkCapturesTypedReal-14              21448             55301 ns/op            8811 B/op         15 allocs/op
+BenchmarkParallelCaptures-14              130564              8752 ns/op            9289 B/op          6 allocs/op
+```
